@@ -62,10 +62,20 @@ quietcss/
   "version": "0.1.0",
   "description": "Take control of your browsing experience. Restyle or cover distracting elements on any webpage.",
 
+
+  // Permissions required for QuietCSS extension functionality:
   "permissions": [
+    // "storage": Needed for persistent storage of user rules and blinds.
+    //   Used by: background/service_worker.js (handles all storage I/O for rules/blinds)
     "storage",
+    // "activeTab": Allows the extension to inject scripts/styles into the active tab on demand.
+    //   Used by: background/service_worker.js (for message relay and script injection)
     "activeTab",
+    // "scripting": Required to programmatically inject scripts/styles into web pages.
+    //   Used by: content/injector.js, content/observer.js (applies user rules/styles)
     "scripting",
+    // "tabs": Enables tracking of tab navigation and sending TAB_CHANGED messages to the sidebar.
+    //   Used by: background/service_worker.js (tab tracking, message passing)
     "tabs"
   ],
 
@@ -110,6 +120,7 @@ quietcss/
 - `activeTab` + `scripting` replace the need for broad host permissions.
 - `tabs` permission is needed so the background service worker can track navigation events and push `TAB_CHANGED` messages to the sidebar.
 - All content scripts are loaded at `document_start` so the injector can apply styles before first paint.
+- The comments written in `manifest.json` will be added to the actual manifest so it is easy to track why each permission is included.
 
 ---
 
