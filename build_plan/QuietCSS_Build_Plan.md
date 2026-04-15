@@ -476,7 +476,7 @@ Mode transitions are triggered by messages from the sidebar:
 - `ENTER_EDIT_MODE { submode: "style" | "blind" }` → activate appropriate sub-mode
 - `EXIT_EDIT_MODE {}` → return to BROWSE
 
-In EDIT mode, a fixed banner is injected at the top of the viewport to indicate the user is in edit mode. It must have `z-index: 2147483647` and `pointer-events: none` so it does not interfere with element picking.
+In EDIT mode, hover highlighting and crosshair cursor behavior are the primary visual indicators that style picking is active.
 
 
 ### `content/picker.ts`
@@ -515,7 +515,7 @@ Implementation: inject a single `<div id="quietcss-highlight-overlay">` containi
 
 ### Tasks
 
-1. Implement `src/content/edit_mode.ts` with mode state and the edit-mode banner.
+1. Implement `src/content/edit_mode.ts` with mode state transitions.
 2. Implement `src/content/picker.ts`.
 3. Implement `src/content/highlight_overlay.ts`.
 4. Wire up the sidebar to send `ENTER_EDIT_MODE { submode: "style" }` on a test button click.
@@ -523,13 +523,12 @@ Implementation: inject a single `<div id="quietcss-highlight-overlay">` containi
 
 ### Acceptance Criteria
 
-- [ ] Edit mode banner appears when mode is entered and disappears on exit.
 - [ ] Hovering over elements shows the highlight overlay tracking the cursor correctly.
 - [ ] Crosshair lines extend to viewport edges and update smoothly.
 - [ ] Clicking an element locks the highlight and stops it from tracking the mouse.
 - [ ] `ELEMENT_PICKED` payload arrives in the sidebar with correct selector and computed styles.
 - [ ] Normal page clicks are fully suppressed while in STYLE sub-mode.
-- [ ] Exiting edit mode removes the overlay, banner, and cursor style.
+- [ ] Exiting edit mode removes the overlay and cursor style.
 
 ---
 
