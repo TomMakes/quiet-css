@@ -25,9 +25,10 @@ All source code is written in TypeScript (.ts/.tsx). The extension is built by c
 11. [Build Step 7 — Selector Auto-Gen + Regex Toggle](#11-build-step-7--selector-auto-gen--regex-toggle)
 12. [Build Step 8 — Blind Draw + Render](#12-build-step-8--blind-draw--render)
 13. [Build Step 9 — Export/Import + storage.sync](#13-build-step-9--exportimport--storagesync)
-14. [Data Schemas](#14-data-schemas)
-15. [Message Passing Reference](#15-message-passing-reference)
-16. [Testing Checkpoints](#16-testing-checkpoints)
+14. [Build Step 10 — Help Button](#14-build-step-10--help-button)
+15. [Data Schemas](#15-data-schemas)
+16. [Message Passing Reference](#16-message-passing-reference)
+17. [Testing Checkpoints](#17-testing-checkpoints)
 
 ---
 
@@ -807,7 +808,28 @@ A toggle in the sidebar footer: "Sync rules across devices (uses browser sync st
 ---
 
 
-## 14. Data Schemas
+## 14. Build Step 10 — Help Button
+
+**Goal**: Clicking the `[?]` help button in the sidebar header opens the QuietCSS GitHub page in a new browser tab.
+
+### Tasks
+
+1. In `sidebar/sidebar.html`, ensure the `[?]` button in the sidebar header has an `id` (e.g. `id="help-btn"`).
+2. In `src/sidebar/sidebar.ts`, add a click listener on `#help-btn` that calls `browser.tabs.create({ url: "https://github.com/TomMakes/quiet-css" })`.
+3. No background message passing is needed — `browser.tabs.create` is available directly in the sidebar context.
+4. TypeScript compilation must pass with no errors.
+
+### Acceptance Criteria
+
+- [ ] Clicking `[?]` opens `https://github.com/TomMakes/quiet-css` in a new tab.
+- [ ] The sidebar remains open after clicking help.
+- [ ] No console errors on click.
+- [ ] TypeScript compiles with no errors.
+
+---
+
+
+## 15. Data Schemas
 
 Complete reference for all persisted objects.
 
@@ -843,7 +865,7 @@ Complete reference for all persisted objects.
 ---
 
 
-## 15. Message Passing Reference
+## 16. Message Passing Reference
 
 All messages follow `{ type: string, payload: object }`. The background service worker relays content↔sidebar messages by forwarding to the currently active tab's content script or to the sidebar port respectively.
 
@@ -895,7 +917,7 @@ All messages follow `{ type: string, payload: object }`. The background service 
 ---
 
 
-## 16. Testing Checkpoints
+## 17. Testing Checkpoints
 
 A high-confidence test for each completed build step. All tests should be performed on both a static page (e.g. `example.com`) and YouTube unless otherwise noted.
 
@@ -916,6 +938,7 @@ A high-confidence test for each completed build step. All tests should be perfor
 | 8 | Toggle position mode | Blind converts between scroll-fixed and viewport-fixed correctly |
 | 9 | Export, import on fresh profile | All rules and blinds restored correctly |
 | 9 | Enable sync, save a rule, check storage | Rule present in `browser.storage.sync` |
+| 10 | Click `[?]` help button in sidebar header | `https://github.com/TomMakes/quiet-css` opens in a new tab; sidebar stays open |
 
 ---
 
