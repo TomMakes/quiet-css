@@ -307,6 +307,19 @@ The service worker handles the following message types. All storage operations u
 
 **Storage key strategy**: Store all rules in a single key `quietcss_rules` and all blinds in `quietcss_blinds` as JSON arrays. Do not key by hostname — filtering by hostname is done in memory after retrieval. This keeps the storage structure simple and portable for export/import.
 
+**Hardcoded test rule for this step and build step 3** (remove after step is validated):
+```js
+// Temporarily inject this rule without storage to test injection timing:
+{
+  selector: ".ytLikeButtonViewModelHost",
+  css: "display: none !important;",
+  hostPattern: "www.youtube.com",
+  isRegex: false,
+  enabled: true,
+  forceReapply: false
+}
+```
+
 **Hostname matching logic** (used in storage layer and injector):
 ```js
 function matchesHost(pattern, isRegex, hostname) {
@@ -364,24 +377,11 @@ Runs at `document_start`.
 
 Tagging style elements with the rule ID allows them to be updated or removed without re-injecting everything.
 
-**Hardcoded test rule for this step** (remove after step is validated):
-```js
-// Temporarily inject this rule without storage to test injection timing:
-{
-  selector: ".ytLikeButtonViewModelHost",
-  css: "display: none !important;",
-  hostPattern: "www.youtube.com",
-  isRegex: false,
-  enabled: true,
-  forceReapply: false
-}
-```
-
 ### Tasks
 
 1. Implement `src/content/injector.ts` with the sequence above.
-2. Test on `www.youtube.com/watch?v=...` — the right-side recommended video sidebar (`.ytLikeButtonViewModelHost`) should be hidden on page load with no flash.
-3. Test on a static page to confirm styles apply and the style tag is present in the DOM.
+2. Test on a static page to confirm styles apply and the style tag is present in the DOM.
+3. Test on `www.youtube.com/watch?v=...` — the right-side recommended video sidebar (`.ytLikeButtonViewModelHost`) should be hidden on page load with no flash.
 
 ### Acceptance Criteria
 
