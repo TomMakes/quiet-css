@@ -22,13 +22,14 @@ All source code is written in TypeScript (.ts/.tsx). The extension is built by c
 8. [Build Step 4 — MutationObserver Reapply Layer](#8-build-step-4--mutationobserver-reapply-layer)
 9. [Build Step 5 — Element Picker + Highlight Overlay](#9-build-step-5--element-picker--highlight-overlay)
 10. [Build Step 6 — CSS Editor Panel](#10-build-step-6--css-editor-panel)
-11. [Build Step 7 — Selector Auto-Gen + Regex Toggle](#11-build-step-7--selector-auto-gen--regex-toggle)
-12. [Build Step 8 — Blind Draw + Render](#12-build-step-8--blind-draw--render)
-13. [Build Step 9 — Export/Import + storage.sync](#13-build-step-9--exportimport--storagesync)
-14. [Build Step 10 — Help Button](#14-build-step-10--help-button)
-15. [Data Schemas](#15-data-schemas)
-16. [Message Passing Reference](#16-message-passing-reference)
-17. [Testing Checkpoints](#17-testing-checkpoints)
+11. [Build Step 7 — Selector Auto-Gen](#11-build-step-7--selector-auto-gen)
+12. [Build Step 8 — Regex Toggle](#12-build-step-8--regex-toggle)
+13. [Build Step 9 — Blind Draw + Render](#13-build-step-9--blind-draw--render)
+14. [Build Step 10 — Export/Import + storage.sync](#14-build-step-10--exportimport--storagesync)
+15. [Build Step 11 — Help Button](#15-build-step-11--help-button)
+16. [Data Schemas](#16-data-schemas)
+17. [Message Passing Reference](#17-message-passing-reference)
+18. [Testing Checkpoints](#18-testing-checkpoints)
 
 ---
 
@@ -584,12 +585,6 @@ Implementation: inject a single `<div id="quietcss-highlight-overlay">` containi
 - Editing the selector field does **not** update the name field if `nameIsCustom = true`.
 - Editing the selector field **does** update the name field if `nameIsCustom = false` (name stays in sync with selector until user customizes it).
 
-### Regex Toggle (`[.*]` button)
-
-- Clicking toggles `isRegex` on the current rule being edited.
-- When `isRegex = true`, validate the hostname pattern in real time. Show a green checkmark for valid, red X for invalid regex.
-- When `isRegex = false`, display is plain text with no validation indicator.
-
 ### Saved Rules List
 
 - Each entry shows: `name` (bold), `selector` (muted, smaller), enable toggle (filled circle = enabled, empty = disabled), delete button.
@@ -613,12 +608,11 @@ Implementation: inject a single `<div id="quietcss-highlight-overlay">` containi
 - [ ] Saving a rule adds it to the saved rules list immediately.
 - [ ] Toggling enable/disable updates storage and reapplies or removes the style tag on the active page.
 - [ ] Deleting a rule removes it from storage and removes its style tag from the active page.
-- [ ] Regex toggle shows validation state in real time.
 
 ---
 
 
-## 11. Build Step 7 — Selector Auto-Gen + Regex Toggle
+## 11. Build Step 7 — Selector Auto-Gen
 
 **Goal**: Implement the `⟳ Auto-generate` button that calls `selector_gen.js` against the currently picked element and populates the selector field.
 
@@ -658,7 +652,35 @@ Attempt the following in order, returning the first result with `confidence: "hi
 ---
 
 
-## 12. Build Step 8 — Blind Draw + Render
+## 12. Build Step 8 — Regex Toggle
+
+**Goal**: Implement the `[.*]` regex toggle button behavior for the host pattern field.
+
+### Regex Toggle (`[.*]` button)
+
+- Clicking toggles `isRegex` on the current rule being edited, and if `isRegex` is true, makes the toggle button have a blue tint with a pressed button style.
+- When `isRegex = true`, validate the hostname pattern in real time. Show a green checkmark for valid, red X for invalid regex.
+- When `isRegex = false`, display is plain text with no validation indicator.
+
+### Tasks
+
+1. Implement the `[.*]` toggle click handler in `src/sidebar/sidebar.ts`: flip `isRegex` on the active rule being edited and update the button's visual state.
+2. When `isRegex = true`, attach an `input` listener to the host pattern field that validates the pattern as a regex in real time and shows a green checkmark or red X.
+3. Clear validation indicators when `isRegex` is toggled off.
+4. TypeScript compilation must pass with no errors.
+
+### Acceptance Criteria
+
+- [ ] Clicking `[.*]` toggles the button to a blue/pressed visual state.
+- [ ] When regex mode is on, typing a valid regex in the host pattern field shows a green checkmark.
+- [ ] When regex mode is on, typing an invalid regex shows a red X.
+- [ ] Turning regex mode off removes all validation indicators.
+- [ ] `isRegex` state is saved correctly with the rule.
+
+---
+
+
+## 13. Build Step 9 — Blind Draw + Render
 
 **Goal**: Users can draw rectangular overlay boxes on any page to cover distracting content. Blinds persist and are re-rendered on each visit.
 
@@ -757,7 +779,7 @@ Attempt the following in order, returning the first result with `confidence: "hi
 ---
 
 
-## 13. Build Step 9 — Export/Import + storage.sync
+## 14. Build Step 10 — Export/Import + storage.sync
 
 **Goal**: Allow users to back up and restore all rules and blinds, and optionally sync across browser profiles.
 
@@ -808,7 +830,7 @@ A toggle in the sidebar footer: "Sync rules across devices (uses browser sync st
 ---
 
 
-## 14. Build Step 10 — Help Button
+## 15. Build Step 11 — Help Button
 
 **Goal**: Clicking the `[?]` help button in the sidebar header opens the QuietCSS GitHub page in a new browser tab.
 
@@ -829,7 +851,7 @@ A toggle in the sidebar footer: "Sync rules across devices (uses browser sync st
 ---
 
 
-## 15. Data Schemas
+## 16. Data Schemas
 
 Complete reference for all persisted objects.
 
@@ -865,7 +887,7 @@ Complete reference for all persisted objects.
 ---
 
 
-## 16. Message Passing Reference
+## 17. Message Passing Reference
 
 All messages follow `{ type: string, payload: object }`. The background service worker relays content↔sidebar messages by forwarding to the currently active tab's content script or to the sidebar port respectively.
 
@@ -917,7 +939,7 @@ All messages follow `{ type: string, payload: object }`. The background service 
 ---
 
 
-## 17. Testing Checkpoints
+## 18. Testing Checkpoints
 
 A high-confidence test for each completed build step. All tests should be performed on both a static page (e.g. `example.com`) and YouTube unless otherwise noted.
 
@@ -934,11 +956,13 @@ A high-confidence test for each completed build step. All tests should be perfor
 | 6 | Clear name field, click away | Name restores to selector value |
 | 7 | Click Auto-generate on YouTube sidebar | Selector field populated; confidence shown |
 | 7 | Type invalid selector | Red indicator; Save button disabled |
-| 8 | Draw a blind, save | Blind renders on page; persists on reload |
-| 8 | Toggle position mode | Blind converts between scroll-fixed and viewport-fixed correctly |
-| 9 | Export, import on fresh profile | All rules and blinds restored correctly |
-| 9 | Enable sync, save a rule, check storage | Rule present in `browser.storage.sync` |
-| 10 | Click `[?]` help button in sidebar header | `https://github.com/TomMakes/quiet-css` opens in a new tab; sidebar stays open |
+| 8 | Toggle regex mode, type invalid host pattern | Red X shown; valid pattern shows green checkmark |
+| 8 | Toggle regex mode off | Validation indicators cleared |
+| 9 | Draw a blind, save | Blind renders on page; persists on reload |
+| 9 | Toggle position mode | Blind converts between scroll-fixed and viewport-fixed correctly |
+| 10 | Export, import on fresh profile | All rules and blinds restored correctly |
+| 10 | Enable sync, save a rule, check storage | Rule present in `browser.storage.sync` |
+| 11 | Click `[?]` help button in sidebar header | `https://github.com/TomMakes/quiet-css` opens in a new tab; sidebar stays open |
 
 ---
 
