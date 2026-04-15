@@ -4,53 +4,96 @@
 
 ---
 
-## Table of Contents
-
-1. [Project Structure](#1-project-structure)
-2. [Manifest](#2-manifest)
-3. [Shared Modules](#3-shared-modules)
-4. [Build Step 1 — Manifest + Sidebar Shell](#4-build-step-1--manifest--sidebar-shell)
-5. [Build Step 2 — Storage Layer](#5-build-step-2--storage-layer)
-6. [Build Step 3 — Injector](#6-build-step-3--injector)
-7. [Build Step 4 — MutationObserver Reapply Layer](#7-build-step-4--mutationobserver-reapply-layer)
-8. [Build Step 5 — Element Picker + Highlight Overlay](#8-build-step-5--element-picker--highlight-overlay)
-9. [Build Step 6 — CSS Editor Panel](#9-build-step-6--css-editor-panel)
-10. [Build Step 7 — Selector Auto-Gen + Regex Toggle](#10-build-step-7--selector-auto-gen--regex-toggle)
-11. [Build Step 8 — Blind Draw + Render](#11-build-step-8--blind-draw--render)
-12. [Build Step 9 — Export/Import + storage.sync](#12-build-step-9--exportimport--storagesync)
-13. [Data Schemas](#13-data-schemas)
-14. [Message Passing Reference](#14-message-passing-reference)
-15. [Testing Checkpoints](#15-testing-checkpoints)
+**TypeScript Note:**
+All source code is written in TypeScript (.ts/.tsx). The extension is built by compiling TypeScript sources in `src/` to JavaScript in `dist/`. All references to code files in this plan refer to TypeScript sources unless otherwise noted. The extension package uses the compiled JS output in `dist/`.
 
 ---
+
+## Table of Contents
+
+
+1. [Project Structure](#1-project-structure)
+2. [TypeScript & Build Setup](#2-typescript--build-setup)
+3. [Manifest](#3-manifest)
+4. [Shared Modules](#4-shared-modules)
+5. [Build Step 1 — Manifest + Sidebar Shell](#5-build-step-1--manifest--sidebar-shell)
+6. [Build Step 2 — Storage Layer](#6-build-step-2--storage-layer)
+7. [Build Step 3 — Injector](#7-build-step-3--injector)
+8. [Build Step 4 — MutationObserver Reapply Layer](#8-build-step-4--mutationobserver-reapply-layer)
+9. [Build Step 5 — Element Picker + Highlight Overlay](#9-build-step-5--element-picker--highlight-overlay)
+10. [Build Step 6 — CSS Editor Panel](#10-build-step-6--css-editor-panel)
+11. [Build Step 7 — Selector Auto-Gen + Regex Toggle](#11-build-step-7--selector-auto-gen--regex-toggle)
+12. [Build Step 8 — Blind Draw + Render](#12-build-step-8--blind-draw--render)
+13. [Build Step 9 — Export/Import + storage.sync](#13-build-step-9--exportimport--storagesync)
+14. [Data Schemas](#14-data-schemas)
+15. [Message Passing Reference](#15-message-passing-reference)
+16. [Testing Checkpoints](#16-testing-checkpoints)
+
+---
+
 
 ## 1. Project Structure
 
 ```
 quietcss/
-├── manifest.json
-├── background/
-│   └── service_worker.js       # Storage I/O, message relay, tab tracking
-├── content/
-│   ├── injector.js             # Runs at document_start; injects saved rules + blinds
-│   ├── observer.js             # MutationObserver reapply layer
-│   ├── picker.js               # Hover highlight + element selection
-│   ├── highlight_overlay.js    # Persistent selection highlight while sidebar is open
-│   ├── blind.js                # Blind render, draw mechanic, z-index guardian
-│   └── edit_mode.js            # Mode state machine; coordinates all content scripts
+├── src/                        # All TypeScript source files
+│   ├── background/
+│   │   └── service_worker.ts   # Storage I/O, message relay, tab tracking
+│   ├── content/
+│   │   ├── injector.ts         # Runs at document_start; injects saved rules + blinds
+│   │   ├── observer.ts         # MutationObserver reapply layer
+│   │   ├── picker.ts           # Hover highlight + element selection
+│   │   ├── highlight_overlay.ts# Persistent selection highlight while sidebar is open
+│   │   ├── blind.ts            # Blind render, draw mechanic, z-index guardian
+│   │   └── edit_mode.ts        # Mode state machine; coordinates all content scripts
+│   ├── sidebar/
+│   │   └── sidebar.ts          # UI logic + message passing
+│   └── shared/
+│       ├── schema.ts           # Rule + Blind constructors and validation
+│       ├── selector_gen.ts     # Auto-selector generation (used in content + sidebar)
+│       └── pattern_fills.ts    # SVG data URI pattern definitions for blinds
 ├── sidebar/
 │   ├── sidebar.html
 │   ├── sidebar.css
-│   └── sidebar.js              # UI logic + message passing
-└── shared/
-    ├── schema.js               # Rule + Blind constructors and validation
-    ├── selector_gen.js         # Auto-selector generation (used in content + sidebar)
-    └── pattern_fills.js        # SVG data URI pattern definitions for blinds
+├── dist/                       # Compiled JS output for extension packaging
+│   └── ...
+├── manifest.json               # References files in dist/
+├── tsconfig.json               # TypeScript config
+├── package.json                # NPM scripts, dependencies
+└── ...
 ```
+
+**Notes:**
+- All TypeScript source files live in `src/`.
+- The build process compiles `.ts` to `.js` in `dist/`.
+- The extension manifest and browser load files from `dist/`.
+- Static assets (HTML, CSS, icons) remain outside `src/`.
 
 ---
 
-## 2. Manifest
+
+## 2. TypeScript & Build Setup
+
+**Initial Setup:**
+
+1. Add `tsconfig.json` with output to `dist/` and strict type checking.
+2. Add `package.json` with scripts:
+  - `build`: Compile TypeScript (`tsc`)
+  - `watch`: Watch and recompile on changes
+  - `lint`: Run ESLint with TypeScript support
+  - `clean`: Remove `dist/`
+3. Install dependencies: `typescript`, `eslint`, `@typescript-eslint/parser`, `@typescript-eslint/eslint-plugin`, and any needed type definitions.
+4. (Optional) Add Prettier for formatting.
+
+**Build Step:**
+- Always run `npm run build` before packaging or testing the extension.
+- All code steps require TypeScript compilation to pass with no errors.
+- Linting is required before final packaging.
+
+---
+
+## 3. Manifest
+
 
 **File**: `manifest.json`  
 **Version**: Manifest V3
@@ -79,29 +122,32 @@ quietcss/
     "tabs"
   ],
 
+
   "background": {
-    "scripts": ["background/service_worker.js"],
+    "scripts": ["dist/background/service_worker.js"],
     "type": "module"
   },
+
 
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
       "js": [
-        "shared/schema.js",
-        "shared/selector_gen.js",
-        "shared/pattern_fills.js",
-        "content/injector.js",
-        "content/observer.js",
-        "content/highlight_overlay.js",
-        "content/picker.js",
-        "content/blind.js",
-        "content/edit_mode.js"
+        "dist/shared/schema.js",
+        "dist/shared/selector_gen.js",
+        "dist/shared/pattern_fills.js",
+        "dist/content/injector.js",
+        "dist/content/observer.js",
+        "dist/content/highlight_overlay.js",
+        "dist/content/picker.js",
+        "dist/content/blind.js",
+        "dist/content/edit_mode.js"
       ],
       "run_at": "document_start",
       "all_frames": false
     }
   ],
+
 
   "sidebar_action": {
     "default_title": "QuietCSS",
@@ -116,7 +162,9 @@ quietcss/
 }
 ```
 
+
 **Notes**:
+- All JS files referenced in the manifest are built from TypeScript sources in `src/` and output to `dist/`.
 - `activeTab` + `scripting` replace the need for broad host permissions.
 - `tabs` permission is needed so the background service worker can track navigation events and push `TAB_CHANGED` messages to the sidebar.
 - All content scripts are loaded at `document_start` so the injector can apply styles before first paint.
@@ -124,11 +172,13 @@ quietcss/
 
 ---
 
-## 3. Shared Modules
+
+## 4. Shared Modules
 
 These modules must be written first as they are dependencies of both content scripts and the sidebar.
 
-### `shared/schema.js`
+
+### `shared/schema.ts`
 
 Defines constructors and validators for the two core data types. Export as plain functions compatible with both module and non-module contexts.
 
@@ -167,7 +217,8 @@ function createBlind({
 
 **Validators**: Each constructor should validate that `hostPattern` is a non-empty string and, if `isRegex` is true, that the pattern compiles without error (wrap in try/catch; return `{ valid: false, error }` on failure).
 
-### `shared/selector_gen.js`
+
+### `shared/selector_gen.ts`
 
 Auto-generates a stable CSS selector for a given DOM element. Used by the content script when an element is picked, and optionally by the sidebar to validate user-edited selectors.
 
@@ -190,7 +241,8 @@ function validateSelector(selectorString) {
 }
 ```
 
-### `shared/pattern_fills.js`
+
+### `shared/pattern_fills.ts`
 
 Exports four CSS `background` values as strings, used to style blind overlays.
 
@@ -206,19 +258,23 @@ const PATTERNS = {
 
 ---
 
-## 4. Build Step 1 — Manifest + Sidebar Shell
+
+## 5. Build Step 1 — Manifest + Sidebar Shell
 
 **Goal**: Confirm that the sidebar opens, the background service worker starts, and a round-trip message can be sent and received.
 
 ### Tasks
 
-1. Create the directory structure and `manifest.json` as specified in §2.
-2. Create `background/service_worker.js` with a single message listener that logs received messages and echoes them back.
+
+1. Create the directory structure and `manifest.json` as specified above.
+2. Create `src/background/service_worker.ts` with a single message listener that logs received messages and echoes them back.
 3. Create `sidebar/sidebar.html` — a minimal HTML page that:
-   - Has a `[Styles]` and `[Blinds]` tab button (non-functional yet)
-   - Has a "Send test message" button
-   - Displays a response area
-4. Create `sidebar/sidebar.js` that sends `{ type: "PING", payload: {} }` to the background on button click and displays the response.
+  - Has a `[Styles]` and `[Blinds]` tab button (non-functional yet)
+  - Has a "Send test message" button
+  - Displays a response area
+4. Create `src/sidebar/sidebar.ts` that sends `{ type: "PING", payload: {} }` to the background on button click and displays the response.
+5. Compile TypeScript (`npm run build`) and verify output in `dist/`.
+
 
 ### Acceptance Criteria
 
@@ -226,10 +282,12 @@ const PATTERNS = {
 - [ ] Clicking "Send test message" logs the message in the background service worker console.
 - [ ] The sidebar displays the echoed response.
 - [ ] No console errors on load.
+- [ ] TypeScript compiles with no errors.
 
 ---
 
-## 5. Build Step 2 — Storage Layer
+
+## 6. Build Step 2 — Storage Layer
 
 **Goal**: Implement all storage reads and writes through the background service worker. The sidebar and content scripts never call `browser.storage` directly.
 
@@ -259,15 +317,17 @@ function matchesHost(pattern, isRegex, hostname) {
       return false;
     }
   }
-  return pattern === hostname;
+  return hostname.includes(pattern);
 }
 ```
 
 ### Tasks
 
-1. Implement all message handlers in `service_worker.js`.
-2. Update `sidebar.js` to call `GET_RULES` on load and display the count of rules/blinds returned (even if zero).
+
+1. Implement all message handlers in `src/background/service_worker.ts`.
+2. Update `src/sidebar/sidebar.ts` to call `GET_RULES` on load and display the count of rules/blinds returned (even if zero).
 3. Add a "Save test rule" button to the sidebar that calls `SAVE_RULE` with a hardcoded rule object, then re-fetches and displays the updated count.
+4. TypeScript compilation must pass with no errors.
 
 ### Acceptance Criteria
 
@@ -278,11 +338,13 @@ function matchesHost(pattern, isRegex, hostname) {
 
 ---
 
-## 6. Build Step 3 — Injector
+
+## 7. Build Step 3 — Injector
 
 **Goal**: On every page load, apply saved rules and render saved blinds for the current hostname before the page paints.
 
-### `content/injector.js`
+
+### `content/injector.ts`
 
 Runs at `document_start`.
 **Sequence**:
@@ -317,7 +379,7 @@ Tagging style elements with the rule ID allows them to be updated or removed wit
 
 ### Tasks
 
-1. Implement `injector.js` with the sequence above.
+1. Implement `src/content/injector.ts` with the sequence above.
 2. Test on `www.youtube.com/watch?v=...` — the right-side recommended video sidebar (`.ytLikeButtonViewModelHost`) should be hidden on page load with no flash.
 3. Test on a static page to confirm styles apply and the style tag is present in the DOM.
 
@@ -330,11 +392,13 @@ Tagging style elements with the rule ID allows them to be updated or removed wit
 
 ---
 
-## 7. Build Step 4 — MutationObserver Reapply Layer
+
+## 8. Build Step 4 — MutationObserver Reapply Layer
 
 **Goal**: Re-apply rules on sites like YouTube where the DOM is torn down and rebuilt during SPA navigation, defeating `document_start` injection.
 
-### `content/observer.js`
+
+### `content/observer.ts`
 
 This module activates only for rules that have `forceReapply: true`. It must handle two scenarios:
 
@@ -378,7 +442,7 @@ window.addEventListener("popstate", onNavigation);
 
 ### Tasks
 
-1. Implement `observer.js`.
+1. Implement `src/content/observer.ts`.
 2. Enable the hardcoded YouTube test rule with `forceReapply: true`.
 3. On YouTube, navigate from the homepage to a watch page and back using YouTube's own links (not browser back button). Confirm `.ytLikeButtonViewModelHost` is hidden on every watch page, including after multiple navigations.
 
@@ -391,11 +455,13 @@ window.addEventListener("popstate", onNavigation);
 
 ---
 
-## 8. Build Step 5 — Element Picker + Highlight Overlay
+
+## 9. Build Step 5 — Element Picker + Highlight Overlay
 
 **Goal**: When the sidebar activates "Style" edit mode, the user can hover over elements on the page to see them highlighted, then click to lock a selection. The sidebar receives the picked element's selector and computed styles.
 
-### Edit Mode State Machine — `content/edit_mode.js`
+
+### Edit Mode State Machine — `content/edit_mode.ts`
 
 Manages two top-level modes and two sub-modes:
 
@@ -412,7 +478,8 @@ Mode transitions are triggered by messages from the sidebar:
 
 In EDIT mode, a fixed banner is injected at the top of the viewport to indicate the user is in edit mode. It must have `z-index: 2147483647` and `pointer-events: none` so it does not interfere with element picking.
 
-### `content/picker.js`
+
+### `content/picker.ts`
 
 Activates when `submode === "style"`.
 
@@ -427,7 +494,8 @@ Activates when `submode === "style"`.
 - Send `ELEMENT_PICKED { selector, computedStyles, tagName }` to the background (to be relayed to the sidebar).
 - `computedStyles` should include only: `display`, `visibility`, `opacity`, `animation`, `position`, `z-index`, `background`, `border`.
 
-### `content/highlight_overlay.js`
+
+### `content/highlight_overlay.ts`
 
 Renders the selection highlight: a light-blue semi-transparent box over the target element, plus dashed horizontal and vertical crosshair lines extending to the viewport edges.
 
@@ -447,9 +515,9 @@ Implementation: inject a single `<div id="quietcss-highlight-overlay">` containi
 
 ### Tasks
 
-1. Implement `edit_mode.js` with mode state and the edit-mode banner.
-2. Implement `picker.js`.
-3. Implement `highlight_overlay.js`.
+1. Implement `src/content/edit_mode.ts` with mode state and the edit-mode banner.
+2. Implement `src/content/picker.ts`.
+3. Implement `src/content/highlight_overlay.ts`.
 4. Wire up the sidebar to send `ENTER_EDIT_MODE { submode: "style" }` on a test button click.
 5. Confirm that clicking an element sends `ELEMENT_PICKED` and the data arrives in the sidebar console.
 
@@ -465,7 +533,8 @@ Implementation: inject a single `<div id="quietcss-highlight-overlay">` containi
 
 ---
 
-## 9. Build Step 6 — CSS Editor Panel
+
+## 10. Build Step 6 — CSS Editor Panel
 
 **Goal**: Build the full sidebar UI for creating, editing, and managing Rules.
 
@@ -530,10 +599,11 @@ Implementation: inject a single `<div id="quietcss-highlight-overlay">` containi
 ### Tasks
 
 1. Build the full Styles tab HTML/CSS in `sidebar.html` / `sidebar.css`.
-2. Implement all name field behaviors in `sidebar.js`.
+2. Implement all name field behaviors in `src/sidebar/sidebar.ts`.
 3. Wire `ELEMENT_PICKED` to populate the editor panel.
 4. Implement Save, Cancel, enable toggle, and delete.
 5. Implement the `!important` toggle (post-processes the CSS textarea content before saving).
+6. TypeScript compilation must pass with no errors.
 
 ### Acceptance Criteria
 
@@ -547,7 +617,8 @@ Implementation: inject a single `<div id="quietcss-highlight-overlay">` containi
 
 ---
 
-## 10. Build Step 7 — Selector Auto-Gen + Regex Toggle
+
+## 11. Build Step 7 — Selector Auto-Gen + Regex Toggle
 
 **Goal**: Implement the `⟳ Auto-generate` button that calls `selector_gen.js` against the currently picked element and populates the selector field.
 
@@ -572,9 +643,10 @@ Attempt the following in order, returning the first result with `confidence: "hi
 
 ### Tasks
 
-1. Implement `selector_gen.js` with all five strategies.
+1. Implement `src/shared/selector_gen.ts` with all five strategies.
 2. Wire the `⟳ Auto-generate` button in the sidebar: send `GENERATE_SELECTOR {}` to the content script, receive `SELECTOR_GENERATED { selector, confidence }` back.
 3. Display confidence indicator next to the selector field.
+4. TypeScript compilation must pass with no errors.
 
 ### Acceptance Criteria
 
@@ -585,7 +657,8 @@ Attempt the following in order, returning the first result with `confidence: "hi
 
 ---
 
-## 11. Build Step 8 — Blind Draw + Render
+
+## 12. Build Step 8 — Blind Draw + Render
 
 **Goal**: Users can draw rectangular overlay boxes on any page to cover distracting content. Blinds persist and are re-rendered on each visit.
 
@@ -595,7 +668,7 @@ Attempt the following in order, returning the first result with `confidence: "hi
 ┌────────────────────────────┐
 │  [Styles] [Blinds ●]       │
 ├────────────────────────────┤
-│  CURRENT SITE              │
+│  TARGET SITE/URL           │
 │  youtube.com         [.*]  │
 │                            │
 │  [+ Draw new blind]        │  ← enters BLIND sub-mode
@@ -618,7 +691,8 @@ Attempt the following in order, returning the first result with `confidence: "hi
 └────────────────────────────┘
 ```
 
-### `content/blind.js`
+
+### `content/blind.ts`
 
 **Blind container**: A single `<div id="quietcss-blinds-container">` is appended as the last child of `<body>`. All blind elements live inside it. A MutationObserver on `<body>` ensures this container is always the last child — if something is appended after it, move it back to last position. This maximizes z-index effectiveness.
 
@@ -662,7 +736,7 @@ Attempt the following in order, returning the first result with `confidence: "hi
 
 ### Tasks
 
-1. Implement `blind.js` with draw mechanic, render, container guardian.
+1. Implement `src/content/blind.ts` with draw mechanic, render, container guardian.
 2. Implement the Blinds tab in the sidebar.
 3. Implement name defaulting behavior.
 4. Implement position mode toggle.
@@ -682,7 +756,8 @@ Attempt the following in order, returning the first result with `confidence: "hi
 
 ---
 
-## 12. Build Step 9 — Export/Import + storage.sync
+
+## 13. Build Step 9 — Export/Import + storage.sync
 
 **Goal**: Allow users to back up and restore all rules and blinds, and optionally sync across browser profiles.
 
@@ -717,6 +792,7 @@ A toggle in the sidebar footer: "Sync rules across devices (uses browser sync st
 
 ### Tasks
 
+1. A footer is added to sidebar with the buttons "Import" and "Export".
 1. Implement Export as a JSON download.
 2. Implement Import with merge/replace options.
 3. Implement the sync toggle and dual-write logic.
@@ -731,7 +807,8 @@ A toggle in the sidebar footer: "Sync rules across devices (uses browser sync st
 
 ---
 
-## 13. Data Schemas
+
+## 14. Data Schemas
 
 Complete reference for all persisted objects.
 
@@ -766,7 +843,8 @@ Complete reference for all persisted objects.
 
 ---
 
-## 14. Message Passing Reference
+
+## 15. Message Passing Reference
 
 All messages follow `{ type: string, payload: object }`. The background service worker relays content↔sidebar messages by forwarding to the currently active tab's content script or to the sidebar port respectively.
 
@@ -817,9 +895,11 @@ All messages follow `{ type: string, payload: object }`. The background service 
 
 ---
 
-## 15. Testing Checkpoints
+
+## 16. Testing Checkpoints
 
 A high-confidence test for each completed build step. All tests should be performed on both a static page (e.g. `example.com`) and YouTube unless otherwise noted.
+
 
 | Step | Test | Pass Condition |
 |---|---|---|
