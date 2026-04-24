@@ -1,0 +1,10 @@
+title: QuietCSS — Build Plan
+description: Build plan for the QuietCSS Firefox extension
+theme: minima
+
+kramdown:
+  input: GFM
+  hard_wrap: false
+  syntax_highlighter: rouge
+
+markdown: kramdown

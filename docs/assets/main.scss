@@ -1,0 +1,51 @@
+---
+---
+
+@import "minima";
+
+/* ── Mobile-friendly overrides ── */
+
+/* Make code blocks horizontally scrollable on narrow screens */
+pre,
+pre > code {
+  overflow-x: auto;
+  white-space: pre;
+  -webkit-overflow-scrolling: touch;
+  word-wrap: normal;
+}
+
+/* Make tables horizontally scrollable on narrow screens */
+table {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Comfortable body padding on small screens */
+@media (max-width: 600px) {
+  .wrapper {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  body {
+    font-size: 16px;
+    line-height: 1.65;
+  }
+
+  h1 { font-size: 1.6em; }
+  h2 { font-size: 1.3em; }
+  h3 { font-size: 1.1em; }
+
+  pre,
+  pre > code {
+    font-size: 0.8em;
+  }
+}
+
+/* Task list checkboxes */
+input[type="checkbox"] {
+  margin-right: 6px;
+}
