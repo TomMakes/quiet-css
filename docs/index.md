@@ -1,3 +1,8 @@
+---
+layout: default
+title: QuietCSS — Build Plan
+---
+
 # QuietCSS — Firefox Extension Build Plan
 
 > **Goal**: A Firefox extension that gives users control over their browsing experience by allowing them to suppress, restyle, or cover distracting visual elements on any webpage. Target audience: intermediate-to-advanced desktop users (keyboard + mouse) who understand how webpages and browsers work.
@@ -97,7 +102,7 @@ quietcss/
 ## 3. Manifest
 
 
-**File**: `manifest.json`  
+**File**: `manifest.json`
 **Version**: Manifest V3
 
 ```json
@@ -383,12 +388,12 @@ Tagging style elements with the rule ID allows them to be updated or removed wit
 
 1. Implement `src/content/injector.ts` with the sequence above.
 2. Test on a static page to confirm styles apply and the style tag is present in the DOM.
-3. Test on `www.youtube.com/watch?v=...` — the like button (`.ytLikeButtonViewModelHost`) should be hidden on page load with no flash.
+3. Test on `www.youtube.com/watch?v=...` — the right-side recommended video sidebar (`.ytLikeButtonViewModelHost`) should be hidden on page load with no flash.
 
 ### Acceptance Criteria
 
 - [ ] `.ytLikeButtonViewModelHost` is not visible on YouTube watch pages on load.
-- [ ] No flash of unstyled content (like button does not appear and then disappear).
+- [ ] No flash of unstyled content (sidebar does not appear and then disappear).
 - [ ] Style tag is present in `<head>` with correct `data-quietcss-rule-id` attribute.
 - [ ] No errors thrown on pages where no rules exist for the current host.
 
