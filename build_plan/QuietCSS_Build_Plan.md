@@ -383,12 +383,12 @@ Tagging style elements with the rule ID allows them to be updated or removed wit
 
 1. Implement `src/content/injector.ts` with the sequence above.
 2. Test on a static page to confirm styles apply and the style tag is present in the DOM.
-3. Test on `www.youtube.com/watch?v=...` — the right-side recommended video sidebar (`.ytLikeButtonViewModelHost`) should be hidden on page load with no flash.
+3. Test on `www.youtube.com/watch?v=...` — the like button (`.ytLikeButtonViewModelHost`) should be hidden on page load with no flash.
 
 ### Acceptance Criteria
 
 - [ ] `.ytLikeButtonViewModelHost` is not visible on YouTube watch pages on load.
-- [ ] No flash of unstyled content (sidebar does not appear and then disappear).
+- [ ] No flash of unstyled content (like button does not appear and then disappear).
 - [ ] Style tag is present in `<head>` with correct `data-quietcss-rule-id` attribute.
 - [ ] No errors thrown on pages where no rules exist for the current host.
 
@@ -602,7 +602,7 @@ Implementation: inject a single `<div id="quietcss-highlight-overlay">` containi
 
 ### Acceptance Criteria
 
-- [ ] Picking an element populates selector, computed styles in CSS textarea, and name field.
+- [ ] Picking an element populates target site, name, selector, computed styles in CSS textarea.
 - [ ] Name auto-populates to selector; clearing and blurring restores selector as name.
 - [ ] Manually setting a name prevents selector edits from overwriting it.
 - [ ] Saving a rule adds it to the saved rules list immediately.
