@@ -1,0 +1,57 @@
+{
+  "manifest_version": 3,
+  "name": "QuietCSS",
+  "version": "0.1.0",
+  "description": "Take control of your browsing experience. Restyle or cover distracting elements on any webpage.",
+
+ // Permissions required for QuietCSS extension functionality:
+  "permissions": [
+    // "storage": Needed for persistent storage of user rules and blinds.
+    //   Used by: background/service_worker.js (handles all storage I/O for rules/blinds)
+    "storage",
+    // "activeTab": Allows the extension to inject scripts/styles into the active tab on demand.
+    //   Used by: background/service_worker.js (for message relay and script injection)
+    "activeTab",
+    // "scripting": Required to programmatically inject scripts/styles into web pages.
+    //   Used by: content/injector.js, content/observer.js (applies user rules/styles)
+    "scripting",
+    // "tabs": Enables tracking of tab navigation and sending TAB_CHANGED messages to the sidebar.
+    //   Used by: background/service_worker.js (tab tracking, message passing)
+    "tabs"
+  ],
+
+  "background": {
+    "scripts": ["dist/background/service_worker.js"],
+    "type": "module"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": [
+        "dist/shared/schema.js",
+        "dist/shared/selector_gen.js",
+        "dist/shared/pattern_fills.js",
+        "dist/content/injector.js",
+        "dist/content/observer.js",
+        "dist/content/highlight_overlay.js",
+        "dist/content/picker.js",
+        "dist/content/blind.js",
+        "dist/content/edit_mode.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ],
+
+  "sidebar_action": {
+    "default_title": "QuietCSS",
+    "default_panel": "sidebar/sidebar.html",
+    "default_icon": "icons/icon-48.png"
+  },
+
+  "icons": {
+    "48": "icons/icon-48.png",
+    "96": "icons/icon-96.png"
+  }
+}

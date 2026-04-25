@@ -1,0 +1,103 @@
+/* sidebar.css — QuietCSS sidebar styles */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: system-ui, sans-serif;
+  font-size: 14px;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.sidebar-header {
+  padding: 12px 12px 0;
+  border-bottom: 1px solid #2e2e4e;
+}
+
+.sidebar-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.tab-bar {
+  display: flex;
+  gap: 4px;
+}
+
+.tab-btn {
+  background: transparent;
+  border: 1px solid #2e2e4e;
+  color: #a0a0c0;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 4px 4px 0 0;
+  border-bottom: none;
+}
+
+.tab-btn--active {
+  background: #2e2e4e;
+  color: #e0e0e0;
+}
+
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.tab-panel--hidden {
+  display: none;
+}
+
+.placeholder-text {
+  color: #606080;
+  font-style: italic;
+}
+
+.sidebar-footer {
+  padding: 12px;
+  border-top: 1px solid #2e2e4e;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.btn {
+  background: #2e2e4e;
+  border: 1px solid #4e4e7e;
+  border-radius: 4px;
+  color: #e0e0e0;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 6px 12px;
+  text-align: center;
+}
+
+.btn:hover {
+  background: #3e3e5e;
+}
+
+.response-area {
+  background: #0d0d1e;
+  border: 1px solid #2e2e4e;
+  border-radius: 4px;
+  color: #80ff80;
+  font-family: monospace;
+  font-size: 11px;
+  max-height: 80px;
+  min-height: 40px;
+  overflow-y: auto;
+  padding: 4px 6px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

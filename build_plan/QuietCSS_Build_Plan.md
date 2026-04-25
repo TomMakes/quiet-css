@@ -280,11 +280,11 @@ const PATTERNS = {
 
 ### Acceptance Criteria
 
-- [ ] Sidebar opens via the browser toolbar button.
-- [ ] Clicking "Send test message" logs the message in the background service worker console.
-- [ ] The sidebar displays the echoed response.
-- [ ] No console errors on load.
-- [ ] TypeScript compiles with no errors.
+- [X] Sidebar opens via the browser toolbar button.
+- [X] Clicking "Send test message" logs the message in the background service worker console.
+- [X] The sidebar displays the echoed response.
+- [X] No console errors on load.
+- [X] TypeScript compiles with no errors.
 
 ---
 

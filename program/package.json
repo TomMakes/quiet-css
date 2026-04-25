@@ -1,0 +1,20 @@
+{
+  "name": "quietcss",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Firefox extension to suppress, restyle, or cover distracting visual elements.",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "lint": "eslint src",
+    "clean": "rimraf dist"
+  },
+  "devDependencies": {
+    "@types/firefox-webext-browser": "^120.0.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.0.0",
+    "rimraf": "^5.0.0",
+    "typescript": "^5.0.0"
+  }
+}
