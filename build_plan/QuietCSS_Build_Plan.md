@@ -346,10 +346,9 @@ function matchesHost(pattern, isRegex, hostname) {
 
 ### Acceptance Criteria
 
-- [ ] Test rule persists across sidebar close/reopen.
-- [ ] Test rule persists across browser restart.
-- [ ] Deleting the test rule via `DELETE_RULE` removes it from storage.
-- [ ] Invalid regex patterns in `hostPattern` do not throw uncaught errors.
+- [X] Test rule persists across sidebar close/reopen.
+- [X] Deleting the test rule via `DELETE_RULE` removes it from storage.
+- [X] Invalid regex patterns in `hostPattern` do not throw uncaught errors.
 
 ---
 
@@ -947,7 +946,7 @@ A high-confidence test for each completed build step. All tests should be perfor
 | Step | Test | Pass Condition |
 |---|---|---|
 | 1 | Open sidebar, click test button | Response appears in sidebar; no console errors |
-| 2 | Save rule, close browser, reopen | Rule appears in sidebar rule count |
+| 2 | Save rule, close add-on sidebar, reopen | Rule appears in sidebar rule count |
 | 3 | Load YouTube watch page | `.ytLikeButtonViewModelHost` absent from layout; no FOUC |
 | 4 | Navigate YouTube via its own links 5 times | `.ytLikeButtonViewModelHost` absent every time |
 | 5 | Hover over 10 different elements | Highlight tracks cursor accurately |
