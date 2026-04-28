@@ -29,7 +29,6 @@
     {
       "matches": ["<all_urls>"],
       "js": [
-        "dist/shared/schema.js",
         "dist/shared/selector_gen.js",
         "dist/shared/pattern_fills.js",
         "dist/content/injector.js",

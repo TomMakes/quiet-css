@@ -1,8 +1,6 @@
 // sidebar.ts — UI logic + message passing
 // Build Step 2: GET_RULES on load, display rule/blind count, save test rule.
 
-import { QCMessage } from "../shared/schema";
-
 // Hardcoded test rule for Build Steps 2 and 3 (remove after validation).
 const TEST_RULE = {
   selector: ".ytLikeButtonViewModelHost",

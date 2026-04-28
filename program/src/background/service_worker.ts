@@ -1,7 +1,7 @@
 // service_worker.ts — Storage I/O, message relay, tab tracking
 // Build Step 2: Full storage handlers for rules and blinds.
 
-import { Rule, Blind, createRule, createBlind, QCMessage } from "../shared/schema.js";
+import { createRule, createBlind, validateRule } from "../shared/schema_utils.js";
 
 const RULES_KEY = "quietcss_rules";
 const BLINDS_KEY = "quietcss_blinds";
@@ -65,15 +65,12 @@ browser.runtime.onMessage.addListener(
       case "SAVE_RULE": {
         const incoming = msg.payload.rule as Partial<Rule>;
         return (async () => {
-          if (incoming.isRegex) {
-            try {
-              new RegExp(incoming.hostPattern ?? "");
-            } catch (e) {
-              return { type: "ERROR", payload: { error: `Invalid regex pattern for hostPattern: ${String(e)}` } };
-            }
-          }
           const rules = await getAllRules();
           const rule = createRule(incoming);
+          const validationResult = validateRule(rule);
+          if (validationResult.valid === false) {
+            return { type: "ERROR", payload: { error: validationResult.error } };
+          }
           const idx = rules.findIndex(r => r.id === rule.id);
           if (idx >= 0) {
             rules[idx] = rule;
