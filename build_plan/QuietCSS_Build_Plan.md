@@ -386,10 +386,10 @@ Tagging style elements with the rule ID allows them to be updated or removed wit
 
 ### Acceptance Criteria
 
-- [ ] `.ytLikeButtonViewModelHost` is not visible on YouTube watch pages on load.
-- [ ] No flash of unstyled content (like button does not appear and then disappear).
-- [ ] Style tag is present in `<head>` with correct `data-quietcss-rule-id` attribute.
-- [ ] No errors thrown on pages where no rules exist for the current host.
+- [X] `.ytLikeButtonViewModelHost` is not visible on YouTube watch pages on load.
+- [X] No flash of unstyled content (like button does not appear and then disappear).
+- [X] Style tag is present in `<head>` with correct `data-quietcss-rule-id` attribute.
+- [X] No errors thrown on pages where no rules exist for the current host.
 
 ---
 
@@ -449,10 +449,10 @@ window.addEventListener("popstate", onNavigation);
 
 ### Acceptance Criteria
 
-- [ ] `.ytLikeButtonViewModelHost` hidden after YouTube SPA navigation (homepage → video → homepage → video).
-- [ ] `.ytLikeButtonViewModelHost` hidden after browser back/forward navigation on YouTube.
-- [ ] No performance degradation (observer is not firing thousands of times per second — use debouncing on the body observer if needed).
-- [ ] Observer is disconnected and re-connected cleanly on navigation (no duplicate observers accumulating).
+- [X] `.ytLikeButtonViewModelHost` hidden after YouTube SPA navigation (homepage → video → homepage → video).
+- [X] `.ytLikeButtonViewModelHost` hidden after browser back/forward navigation on YouTube.
+- [X] No performance degradation (observer is not firing thousands of times per second — use debouncing on the body observer if needed).
+- [X] Observer is disconnected and re-connected cleanly on navigation (no duplicate observers accumulating).
 
 ---
 
