@@ -4,8 +4,8 @@
   "private": true,
   "description": "Firefox extension to suppress, restyle, or cover distracting visual elements.",
   "scripts": {
-    "build": "tsc",
-    "watch": "tsc --watch",
+    "build": "tsc -p ./tsconfig.build.json",
+    "watch": "tsc -p ./tsconfig.build.json --watch",
     "lint": "eslint src",
     "clean": "rimraf dist",
     "test": "vitest run",
