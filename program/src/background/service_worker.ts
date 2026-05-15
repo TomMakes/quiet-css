@@ -142,6 +142,41 @@ browser.runtime.onMessage.addListener(
         })();
       }
 
+      // ── Content ↔ Sidebar relay ──────────────────────────────────────────
+
+      // Sidebar → Content: forward edit-mode commands to the active tab.
+      case "ENTER_EDIT_MODE":
+      case "EXIT_EDIT_MODE":
+      case "HIGHLIGHT_SELECTOR":
+      case "APPLY_RULE_PREVIEW":
+      case "REMOVE_RULE_PREVIEW": {
+        return (async () => {
+          const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+          const tabId = tabs[0]?.id;
+          if (tabId == null) {
+            return { type: "ERROR", payload: { error: "No active tab found" } };
+          }
+          try {
+            await browser.tabs.sendMessage(tabId, { type: msg.type, payload: msg.payload });
+            return { type: "OK", payload: {} };
+          } catch (err) {
+            console.warn("[QuietCSS SW] Relay to content script failed:", err);
+            return { type: "ERROR", payload: { error: String(err) } };
+          }
+        })();
+      }
+
+      // Content → Sidebar: push element-picker results to all extension pages.
+      case "ELEMENT_PICKED":
+      case "BLIND_DRAWN":
+      case "SELECTOR_GENERATED": {
+        // Fire-and-forget broadcast; sidebar may not always be open.
+        browser.runtime.sendMessage({ type: msg.type, payload: msg.payload }).catch(() => {
+          // Sidebar not open — suppress the "Could not establish connection" error.
+        });
+        return Promise.resolve({ type: "OK", payload: {} });
+      }
+
       default:
         console.warn("[QuietCSS SW] Unknown message type:", msg.type);
         return undefined;

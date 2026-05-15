@@ -62,7 +62,10 @@ describe("sidebar UI", () => {
 
     vi.stubGlobal("browser", {
       tabs: { query: mockTabsQuery },
-      runtime: { sendMessage: mockSendMessage },
+      runtime: {
+        sendMessage: mockSendMessage,
+        onMessage: { addListener: vi.fn() },
+      },
     });
   });
 

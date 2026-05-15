@@ -524,12 +524,12 @@ Implementation: inject a single `<div id="quietcss-highlight-overlay">` containi
 
 ### Acceptance Criteria
 
-- [ ] Hovering over elements shows the highlight overlay tracking the cursor correctly.
-- [ ] Crosshair lines extend to viewport edges and update smoothly.
-- [ ] Clicking an element locks the highlight and stops it from tracking the mouse.
-- [ ] `ELEMENT_PICKED` payload arrives in the sidebar with correct selector and computed styles.
-- [ ] Normal page clicks are fully suppressed while in STYLE sub-mode.
-- [ ] Exiting edit mode removes the overlay and cursor style.
+- [X] Hovering over elements shows the highlight overlay tracking the cursor correctly.
+- [X] Crosshair lines extend to viewport edges and update smoothly.
+- [X] Clicking an element locks the highlight and stops it from tracking the mouse.
+- [X] `ELEMENT_PICKED` payload arrives in the sidebar with correct selector and computed styles.
+- [X] Normal page clicks are fully suppressed while in STYLE sub-mode.
+- [X] Exiting edit mode removes the overlay and cursor style.
 
 ---
 
