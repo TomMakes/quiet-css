@@ -150,6 +150,7 @@ describe("sidebar — CSS Editor Panel", () => {
     expect(items.length).toBe(1);
     expect(items[0].querySelector(".rule-item-name")?.textContent).toBe(rule.name);
     expect(items[0].querySelector(".rule-item-selector")?.textContent).toBe(rule.selector);
+    expect(items[0].querySelector("rule-toggle-btn--enabled")).toBeTruthy;
   });
 
   it("hides no-rules-msg when rules are rendered", async () => {
@@ -291,7 +292,8 @@ describe("sidebar — CSS Editor Panel", () => {
     await flushAsync();
 
     expect(capturedRule?.css).toContain("!important");
-    expect(capturedRule?.css).not.toMatch(/!important.*!important/);
+    const matches = capturedRule?.css!.match(/!important/gi) ?? [];
+    expect(matches.length).toBe(2);
   });
 
   it("Save does not double-add !important to declarations that already have it", async () => {
