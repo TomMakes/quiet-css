@@ -42,6 +42,30 @@
   }
 })();
 
+// ── Live-update message handler ────────────────────────────────────────────
+// Handles INJECT_RULE and REMOVE_RULE messages forwarded by the service worker
+// when the sidebar saves, toggles, or deletes a rule.
+browser.runtime.onMessage.addListener((message: unknown): Promise<QCMessage> | undefined => {
+  const msg = message as QCMessage;
+
+  if (msg.type === "INJECT_RULE") {
+    const rule = msg.payload.rule as Rule;
+    removeStyleTag(rule.id); // remove stale tag before re-injecting
+    if (rule.enabled) {
+      injectStyleTag(rule);
+    }
+    return Promise.resolve({ type: "OK", payload: {} });
+  }
+
+  if (msg.type === "REMOVE_RULE") {
+    const id = msg.payload.id as string;
+    removeStyleTag(id);
+    return Promise.resolve({ type: "OK", payload: {} });
+  }
+
+  return undefined;
+});
+
 function injectStyleTag(rule: Rule): void {
   // Avoid double-injection if called again on same page.
   if (document.querySelector(`[data-quietcss-rule-id="${rule.id}"]`)) return;
@@ -52,4 +76,8 @@ function injectStyleTag(rule: Rule): void {
 
   // document.head may not yet exist at document_start; fall back to documentElement.
   (document.head ?? document.documentElement).appendChild(style);
+}
+
+function removeStyleTag(ruleId: string): void {
+  document.querySelector(`[data-quietcss-rule-id="${ruleId}"]`)?.remove();
 }

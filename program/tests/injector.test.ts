@@ -50,6 +50,7 @@ describe("injector IIFE", () => {
           type: "RULES_DATA",
           payload: { rules: [rule], blinds: [] },
         }),
+        onMessage: { addListener: vi.fn() },
       },
     });
 
@@ -73,6 +74,7 @@ describe("injector IIFE", () => {
           type: "RULES_DATA",
           payload: { rules: [rule], blinds: [] },
         }),
+        onMessage: { addListener: vi.fn() },
       },
     });
 
@@ -98,6 +100,7 @@ describe("injector IIFE", () => {
           type: "RULES_DATA",
           payload: { rules: [rule], blinds: [] },
         }),
+        onMessage: { addListener: vi.fn() },
       },
     });
 
@@ -119,6 +122,7 @@ describe("injector IIFE", () => {
           type: "RULES_DATA",
           payload: { rules: [rule], blinds: [] },
         }),
+        onMessage: { addListener: vi.fn() },
       },
     });
 
@@ -134,6 +138,7 @@ describe("injector IIFE", () => {
     vi.stubGlobal("browser", {
       runtime: {
         sendMessage: vi.fn().mockRejectedValue(new Error("Service worker error")),
+        onMessage: { addListener: vi.fn() },
       },
     });
 
@@ -154,6 +159,7 @@ describe("injector IIFE", () => {
     vi.stubGlobal("browser", {
       runtime: {
         sendMessage: vi.fn().mockResolvedValue({ type: "UNKNOWN", payload: {} }),
+        onMessage: { addListener: vi.fn() },
       },
     });
 
@@ -175,7 +181,7 @@ describe("injector IIFE", () => {
     });
 
     vi.stubGlobal("location", { hostname: "www.example.com" });
-    vi.stubGlobal("browser", { runtime: { sendMessage } });
+    vi.stubGlobal("browser", { runtime: { sendMessage, onMessage: { addListener: vi.fn() } } });
 
     // @ts-ignore: injector needs to be imported for IIFE to kick off
     await import("../src/content/injector");

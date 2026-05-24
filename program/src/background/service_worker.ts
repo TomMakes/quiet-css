@@ -144,12 +144,15 @@ browser.runtime.onMessage.addListener(
 
       // ── Content ↔ Sidebar relay ──────────────────────────────────────────
 
-      // Sidebar → Content: forward edit-mode commands to the active tab.
+      // Sidebar → Content: forward edit-mode and rule-update commands to the active tab.
       case "ENTER_EDIT_MODE":
       case "EXIT_EDIT_MODE":
       case "HIGHLIGHT_SELECTOR":
       case "APPLY_RULE_PREVIEW":
-      case "REMOVE_RULE_PREVIEW": {
+      case "REMOVE_RULE_PREVIEW":
+      case "INJECT_RULE":
+      case "REMOVE_RULE":
+      case "GENERATE_SELECTOR": {
         return (async () => {
           const tabs = await browser.tabs.query({ active: true, currentWindow: true });
           const tabId = tabs[0]?.id;

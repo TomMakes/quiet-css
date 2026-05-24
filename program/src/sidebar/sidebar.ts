@@ -1,17 +1,14 @@
-// sidebar.ts — UI logic + message passing
-// Build Step 2: GET_RULES on load, display rule/blind count, save test rule.
-// Build Step 5: Pick-element button, ELEMENT_PICKED handler.
+// sidebar.ts — CSS Editor Panel (Build Step 6)
 
-// Hardcoded test rule for Build Steps 2 and 3.
-// Remove after custom rule creation is implemented
-const TEST_RULE = {
-  selector: ".ytLikeButtonViewModelHost",
-  css: "display: none !important;",
-  hostPattern: "www.youtube.com",
-  isRegex: false,
-  enabled: true,
-  forceReapply: false,
-};
+// ── Module-level state ─────────────────────────────────────────────────────
+let currentHostname = "";
+let allMatchingRules: Rule[] = [];
+let editingRuleId: string | null = null;
+let nameIsCustom = false;
+let isRegex = false;
+let isPickingElement = false;
+
+// ── Utility functions ──────────────────────────────────────────────────────
 
 async function getActiveTabHostname(): Promise<string> {
   try {
@@ -23,102 +20,447 @@ async function getActiveTabHostname(): Promise<string> {
   }
 }
 
-async function fetchAndDisplayCount(hostname: string): Promise<void> {
-  const countEl = document.getElementById("rules-count");
-  if (!countEl) return;
+async function loadRules(): Promise<void> {
   try {
     const response = await browser.runtime.sendMessage({
       type: "GET_RULES",
-      payload: { hostname },
+      payload: { hostname: currentHostname },
     }) as QCMessage;
     if (response.type === "RULES_DATA") {
-      const rules = response.payload.rules as unknown[];
-      const blinds = response.payload.blinds as unknown[];
-      countEl.textContent =
-        `Rules: ${rules.length} | Blinds: ${blinds.length}` +
-        (hostname ? ` (${hostname})` : " (no active tab)");
+      allMatchingRules = response.payload.rules as Rule[];
     }
   } catch (err) {
-    countEl.textContent = `Error loading rules: ${String(err)}`;
+    console.error("[QuietCSS Sidebar] loadRules failed:", err);
+    allMatchingRules = [];
   }
 }
 
-// ── DOMContentLoaded ──────────────────────────────────────────────────────────
-document.addEventListener("DOMContentLoaded", async () => {
-  const pingBtn        = document.getElementById("ping-btn")         as HTMLButtonElement | null;
-  const saveTestRuleBtn = document.getElementById("save-test-rule-btn") as HTMLButtonElement | null;
-  const pickStyleBtn   = document.getElementById("pick-style-btn")   as HTMLButtonElement | null;
-  const exitEditBtn    = document.getElementById("exit-edit-btn")    as HTMLButtonElement | null;
-  const responseArea   = document.getElementById("response-area")    as HTMLPreElement | null;
+async function relayToContentScript(type: string, payload: object): Promise<void> {
+  try {
+    await browser.runtime.sendMessage({ type, payload });
+  } catch {
+    // Suppress – content script may not be available on this page.
+  }
+}
 
-  // Register for unsolicited push messages from the background service worker.
+function addImportantToCSS(css: string): string {
+  return css
+    .split("\n")
+    .map(line => {
+      const trimmed = line.trim();
+      if (!trimmed || !trimmed.includes(":")) return line;
+      const withoutSemi = trimmed.endsWith(";") ? trimmed.slice(0, -1).trimEnd() : trimmed;
+      if (/!important\s*$/i.test(withoutSemi)) return line;
+      return trimmed.endsWith(";")
+        ? `${withoutSemi} !important;`
+        : `${trimmed} !important`;
+    })
+    .join("\n");
+}
+
+/** A function to offer suggestions on style changes to make based on
+ * existing styles. Currently it only suggests that display is set to none.
+ */
+function suggestCSS(computedStyles: Record<string, string>): string {
+  const display = computedStyles["display"];
+  if (display === "none") return "display: none;";
+  return "display: none;";
+}
+
+// ── Render helpers ─────────────────────────────────────────────────────────
+
+function renderRulesList(
+  container: HTMLElement,
+  rules: Rule[],
+  activeRuleId: string | null,
+  noRulesMsg: HTMLElement | null,
+): void {
+  container.querySelectorAll(".rule-item").forEach(el => el.remove());
+  if (noRulesMsg) {
+    noRulesMsg.style.display = rules.length === 0 ? "" : "none";
+  }
+  for (const rule of rules) {
+    container.appendChild(buildRuleItem(rule, rule.id === activeRuleId));
+  }
+}
+
+function updateRulesListActiveState(container: HTMLElement, activeRuleId: string | null): void {
+  container.querySelectorAll(".rule-item").forEach(el => {
+    const item = el as HTMLElement;
+    const isActive = item.dataset.ruleId === activeRuleId;
+    item.classList.toggle("rule-item--active", isActive);
+  });
+}
+
+function buildRuleItem(rule: Rule, isActive: boolean): HTMLElement {
+  const item = document.createElement("div");
+  item.className = "rule-item" + (isActive ? " rule-item--active" : "");
+  item.dataset.ruleId = rule.id;
+
+  const row = document.createElement("div");
+  row.className = "rule-item-row";
+
+  const nameSpan = document.createElement("span");
+  nameSpan.className = "rule-item-name";
+  nameSpan.textContent = rule.name || rule.selector;
+
+  const toggleBtn = document.createElement("button");
+  toggleBtn.className =
+    "rule-toggle-btn" + (rule.enabled ? " rule-toggle-btn--enabled" : "");
+  toggleBtn.textContent = rule.enabled ? "●" : "○";
+  toggleBtn.title = rule.enabled ? "Disable rule" : "Enable rule";
+  toggleBtn.dataset.ruleId = rule.id;
+  toggleBtn.dataset.action = "toggle";
+
+  const deleteBtn = document.createElement("button");
+  deleteBtn.className = "rule-delete-btn";
+  deleteBtn.textContent = "✕";
+  deleteBtn.title = "Delete rule";
+  deleteBtn.dataset.ruleId = rule.id;
+  deleteBtn.dataset.action = "delete";
+
+  row.appendChild(nameSpan);
+  row.appendChild(toggleBtn);
+  row.appendChild(deleteBtn);
+
+  const selectorDiv = document.createElement("div");
+  selectorDiv.className = "rule-item-selector";
+  selectorDiv.textContent = rule.selector;
+
+  item.appendChild(row);
+  item.appendChild(selectorDiv);
+  return item;
+}
+
+function updateRegexToggleVisual(btn: HTMLButtonElement, active: boolean): void {
+  btn.classList.toggle("regex-btn--active", active);
+}
+
+// ── Editor refs type ───────────────────────────────────────────────────────
+
+interface EditorRefs {
+  hostPatternInput: HTMLInputElement;
+  regexToggleBtn: HTMLButtonElement;
+  nameInput: HTMLInputElement;
+  selectorInput: HTMLInputElement;
+  cssInput: HTMLTextAreaElement;
+  importantCheckbox: HTMLInputElement;
+  forceReapplyCheckbox: HTMLInputElement;
+  rulesListContainer: HTMLElement;
+  noRulesMsg: HTMLElement | null;
+}
+
+// ── Editor state helpers ───────────────────────────────────────────────────
+
+function populateEditorFromRule(rule: Rule, refs: EditorRefs): void {
+  editingRuleId = rule.id;
+  nameIsCustom = rule.nameIsCustom;
+  isRegex = rule.isRegex;
+  refs.hostPatternInput.value = rule.hostPattern;
+  refs.nameInput.value = rule.name;
+  refs.selectorInput.value = rule.selector;
+  refs.cssInput.value = rule.css;
+  refs.importantCheckbox.checked = /!important/i.test(rule.css);
+  refs.forceReapplyCheckbox.checked = rule.forceReapply;
+  updateRegexToggleVisual(refs.regexToggleBtn, isRegex);
+}
+
+function populateEditorFromPick(
+  selector: string,
+  computedStyles: Record<string, string>,
+  refs: EditorRefs,
+): void {
+  editingRuleId = null;
+  nameIsCustom = false;
+  isRegex = false;
+  refs.hostPatternInput.value = currentHostname;
+  refs.nameInput.value = selector;
+  refs.selectorInput.value = selector;
+  refs.cssInput.value = suggestCSS(computedStyles);
+  refs.importantCheckbox.checked = true;
+  refs.forceReapplyCheckbox.checked = false;
+  updateRegexToggleVisual(refs.regexToggleBtn, false);
+}
+
+function clearEditor(refs: EditorRefs): void {
+  editingRuleId = null;
+  nameIsCustom = false;
+  isRegex = false;
+  refs.hostPatternInput.value = currentHostname;
+  refs.nameInput.value = "";
+  refs.selectorInput.value = "";
+  refs.cssInput.value = "";
+  refs.importantCheckbox.checked = true;
+  refs.forceReapplyCheckbox.checked = false;
+  updateRegexToggleVisual(refs.regexToggleBtn, false);
+}
+
+// ── Rule action helpers ────────────────────────────────────────────────────
+
+async function saveRule(refs: EditorRefs): Promise<void> {
+  const selector = refs.selectorInput.value.trim();
+  const hostPattern = refs.hostPatternInput.value.trim();
+  if (!selector || !hostPattern) return;
+
+  let css = refs.cssInput.value;
+  if (refs.importantCheckbox.checked) {
+    css = addImportantToCSS(css);
+  }
+
+  const rulePartial: Partial<Rule> = {
+    ...(editingRuleId ? { id: editingRuleId } : {}),
+    name: refs.nameInput.value.trim() || selector,
+    nameIsCustom,
+    hostPattern,
+    isRegex,
+    selector,
+    css,
+    forceReapply: refs.forceReapplyCheckbox.checked,
+    enabled: true,
+  };
+
+  try {
+    const response = await browser.runtime.sendMessage({
+      type: "SAVE_RULE",
+      payload: { rule: rulePartial },
+    }) as QCMessage;
+    if (response.type === "RULE_SAVED") {
+      const savedRule = response.payload.rule as Rule;
+      editingRuleId = savedRule.id;
+      await relayToContentScript("INJECT_RULE", { rule: savedRule });
+      await loadRules();
+      renderRulesList(refs.rulesListContainer, allMatchingRules, editingRuleId, refs.noRulesMsg);
+    }
+  } catch (err) {
+    console.error("[QuietCSS Sidebar] saveRule failed:", err);
+  }
+}
+
+async function deleteRule(ruleId: string, refs: EditorRefs): Promise<void> {
+  try {
+    const wasEditing = editingRuleId === ruleId;
+    await browser.runtime.sendMessage({ type: "DELETE_RULE", payload: { id: ruleId } });
+    await relayToContentScript("REMOVE_RULE", { id: ruleId });
+    await loadRules();
+    if (wasEditing) clearEditor(refs);
+    renderRulesList(refs.rulesListContainer, allMatchingRules, editingRuleId, refs.noRulesMsg);
+  } catch (err) {
+    console.error("[QuietCSS Sidebar] deleteRule failed:", err);
+  }
+}
+
+async function toggleRule(ruleId: string, refs: EditorRefs): Promise<void> {
+  const rule = allMatchingRules.find(r => r.id === ruleId);
+  if (!rule) return;
+  const newEnabled = !rule.enabled;
+  try {
+    const response = await browser.runtime.sendMessage({
+      type: "TOGGLE_RULE",
+      payload: { id: ruleId, enabled: newEnabled },
+    }) as QCMessage;
+    if (response.type === "RULE_UPDATED") {
+      const updated = response.payload.rule as Rule;
+      if (updated.enabled) {
+        await relayToContentScript("INJECT_RULE", { rule: updated });
+      } else {
+        await relayToContentScript("REMOVE_RULE", { id: ruleId });
+      }
+      await loadRules();
+      renderRulesList(refs.rulesListContainer, allMatchingRules, editingRuleId, refs.noRulesMsg);
+    }
+  } catch (err) {
+    console.error("[QuietCSS Sidebar] toggleRule failed:", err);
+  }
+}
+
+// ── DOMContentLoaded ───────────────────────────────────────────────────────
+
+document.addEventListener("DOMContentLoaded", async () => {
+  // ── Resolve DOM refs ───────────────────────────────────────────────────
+  const tabStylesBtn   = document.getElementById("tab-styles")      as HTMLButtonElement | null;
+  const tabBlindsBtn   = document.getElementById("tab-blinds")      as HTMLButtonElement | null;
+  const panelStyles    = document.getElementById("panel-styles")    as HTMLElement | null;
+  const panelBlinds    = document.getElementById("panel-blinds")    as HTMLElement | null;
+  const helpBtn        = document.getElementById("help-btn")        as HTMLButtonElement | null;
+  const collapseBtn    = document.getElementById("collapse-btn")    as HTMLButtonElement | null;
+  const sidebarContent = document.getElementById("sidebar-content") as HTMLElement | null;
+  const saveRuleBtn         = document.getElementById("save-rule-btn")       as HTMLButtonElement | null;
+  const cancelRuleBtn       = document.getElementById("cancel-rule-btn")     as HTMLButtonElement | null;
+  const autoGenBtn          = document.getElementById("auto-gen-btn")        as HTMLButtonElement | null;
+  const selectElementBtn    = document.getElementById("select-element-btn")  as HTMLButtonElement | null;
+
+  const refs: EditorRefs = {
+    hostPatternInput:     document.getElementById("host-pattern-input")     as HTMLInputElement,
+    regexToggleBtn:       document.getElementById("regex-toggle-btn")       as HTMLButtonElement,
+    nameInput:            document.getElementById("rule-name-input")        as HTMLInputElement,
+    selectorInput:        document.getElementById("rule-selector-input")    as HTMLInputElement,
+    cssInput:             document.getElementById("rule-css-input")         as HTMLTextAreaElement,
+    importantCheckbox:    document.getElementById("important-checkbox")     as HTMLInputElement,
+    forceReapplyCheckbox: document.getElementById("force-reapply-checkbox") as HTMLInputElement,
+    rulesListContainer:   document.getElementById("rules-list")             as HTMLElement,
+    noRulesMsg:           document.getElementById("no-rules-msg"),
+  };
+
+  // ── Initialise ─────────────────────────────────────────────────────────
+  currentHostname = await getActiveTabHostname();
+  refs.hostPatternInput.value = currentHostname;
+  await loadRules();
+  renderRulesList(refs.rulesListContainer, allMatchingRules, editingRuleId, refs.noRulesMsg);
+
+  // ── Incoming messages ───────────────────────────────────────────────────
   browser.runtime.onMessage.addListener((message: unknown): Promise<QCMessage> | undefined => {
     const msg = message as QCMessage;
+
     if (msg.type === "ELEMENT_PICKED") {
       const p = msg.payload as {
         selector: string;
         computedStyles: Record<string, string>;
         tagName: string;
       };
-      if (responseArea) {
-        responseArea.textContent =
-          `ELEMENT_PICKED\n` +
-          `tagName:  ${p.tagName}\n` +
-          `selector: ${p.selector}\n\n` +
-          `Computed styles:\n` +
-          Object.entries(p.computedStyles)
-            .map(([k, v]) => `  ${k}: ${v}`)
-            .join("\n");
+      // Element was picked — exit pick mode and reset button.
+      isPickingElement = false;
+      void relayToContentScript("EXIT_EDIT_MODE", {});
+      if (selectElementBtn) {
+        selectElementBtn.textContent = "Select Element";
+        selectElementBtn.classList.remove("select-element-btn--picking");
       }
+      populateEditorFromPick(p.selector, p.computedStyles, refs);
+      updateRulesListActiveState(refs.rulesListContainer, null);
       return Promise.resolve({ type: "ACK", payload: {} });
     }
+
+    if (msg.type === "TAB_CHANGED") {
+      const p = msg.payload as { hostname: string };
+      currentHostname = p.hostname;
+      refs.hostPatternInput.value = currentHostname;
+      void loadRules().then(() =>
+        renderRulesList(refs.rulesListContainer, allMatchingRules, editingRuleId, refs.noRulesMsg)
+      );
+      return Promise.resolve({ type: "ACK", payload: {} });
+    }
+
     return undefined;
   });
 
-  const hostname = await getActiveTabHostname();
-  await fetchAndDisplayCount(hostname);
+  // ── Tab switching ───────────────────────────────────────────────────────
+  tabStylesBtn?.addEventListener("click", () => {
+    tabStylesBtn.classList.add("tab-btn--active");
+    tabBlindsBtn?.classList.remove("tab-btn--active");
+    panelStyles?.classList.remove("tab-panel--hidden");
+    panelBlinds?.classList.add("tab-panel--hidden");
+  });
 
-  pingBtn?.addEventListener("click", async () => {
-    try {
-      const response = await browser.runtime.sendMessage({ type: "PING", payload: {} });
-      if (responseArea) responseArea.textContent = JSON.stringify(response, null, 2);
-    } catch (err) {
-      if (responseArea) responseArea.textContent = `Error: ${String(err)}`;
+  tabBlindsBtn?.addEventListener("click", () => {
+    tabBlindsBtn.classList.add("tab-btn--active");
+    tabStylesBtn?.classList.remove("tab-btn--active");
+    panelBlinds?.classList.remove("tab-panel--hidden");
+    panelStyles?.classList.add("tab-panel--hidden");
+  });
+
+  // ── Header buttons ──────────────────────────────────────────────────────
+  helpBtn?.addEventListener("click", () => {
+    void browser.tabs.create({ url: "https://github.com/TomMakes/quiet-css" });
+  });
+
+  let collapsed = false;
+  collapseBtn?.addEventListener("click", () => {
+    collapsed = !collapsed;
+    sidebarContent?.classList.toggle("sidebar-content--collapsed", collapsed);
+    if (collapseBtn) collapseBtn.textContent = collapsed ? "+" : "−";
+  });
+
+  // ── Regex toggle ────────────────────────────────────────────────────────
+  refs.regexToggleBtn.addEventListener("click", () => {
+    isRegex = !isRegex;
+    updateRegexToggleVisual(refs.regexToggleBtn, isRegex);
+  });
+
+  // ── Name field behaviours ───────────────────────────────────────────────
+  refs.nameInput.addEventListener("input", () => {
+    nameIsCustom = true;
+  });
+
+  refs.nameInput.addEventListener("blur", () => {
+    if (!nameIsCustom && refs.nameInput.value.trim() === "") {
+      refs.nameInput.value = refs.selectorInput.value;
     }
   });
 
-  saveTestRuleBtn?.addEventListener("click", async () => {
-    try {
-      const response = await browser.runtime.sendMessage({
-        type: "SAVE_RULE",
-        payload: { rule: TEST_RULE },
-      }) as QCMessage;
-      if (responseArea) responseArea.textContent = JSON.stringify(response, null, 2);
-      await fetchAndDisplayCount(hostname);
-    } catch (err) {
-      if (responseArea) responseArea.textContent = `Error: ${String(err)}`;
+  // ── Selector syncs name when not custom ────────────────────────────────
+  refs.selectorInput.addEventListener("input", () => {
+    if (!nameIsCustom) {
+      refs.nameInput.value = refs.selectorInput.value;
     }
   });
 
-  pickStyleBtn?.addEventListener("click", async () => {
-    try {
-      await browser.runtime.sendMessage({
-        type: "ENTER_EDIT_MODE",
-        payload: { submode: "style" },
-      });
-      if (responseArea) responseArea.textContent = "Style picker active — hover and click an element.";
-    } catch (err) {
-      if (responseArea) responseArea.textContent = `Error: ${String(err)}`;
+  // ── Select Element toggle ───────────────────────────────────────────────
+  selectElementBtn?.addEventListener("click", () => {
+    isPickingElement = !isPickingElement;
+    if (isPickingElement) {
+      selectElementBtn.textContent = "Cancel Selection";
+      selectElementBtn.classList.add("select-element-btn--picking");
+      void relayToContentScript("ENTER_EDIT_MODE", { submode: "style" });
+    } else {
+      selectElementBtn.textContent = "Select Element";
+      selectElementBtn.classList.remove("select-element-btn--picking");
+      void relayToContentScript("EXIT_EDIT_MODE", {});
     }
   });
 
-  exitEditBtn?.addEventListener("click", async () => {
-    try {
-      await browser.runtime.sendMessage({ type: "EXIT_EDIT_MODE", payload: {} });
-      if (responseArea) responseArea.textContent = "Exited edit mode.";
-    } catch (err) {
-      if (responseArea) responseArea.textContent = `Error: ${String(err)}`;
+  // ── Auto-generate (content-script handler wired in Step 7) ─────────────
+  autoGenBtn?.addEventListener("click", () => {
+    void relayToContentScript("GENERATE_SELECTOR", {});
+  });
+
+  // ── Save ────────────────────────────────────────────────────────────────
+  saveRuleBtn?.addEventListener("click", () => { void saveRule(refs); });
+
+  // ── Cancel ──────────────────────────────────────────────────────────────
+  cancelRuleBtn?.addEventListener("click", () => {
+    clearEditor(refs);
+    updateRulesListActiveState(refs.rulesListContainer, null);
+  });
+
+  // ── Rules list: click-to-edit / toggle / delete ─────────────────────────
+  refs.rulesListContainer.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement;
+    const action = target.dataset.action;
+    const ruleId = target.dataset.ruleId;
+
+    if (action === "delete" && ruleId) {
+      e.stopPropagation();
+      void deleteRule(ruleId, refs);
+      return;
     }
+
+    if (action === "toggle" && ruleId) {
+      e.stopPropagation();
+      void toggleRule(ruleId, refs);
+      return;
+    }
+
+    // Click on rule item -> load into editor.
+    const item = target.closest?.(".rule-item") as HTMLElement | null;
+    if (item?.dataset.ruleId) {
+      const rule = allMatchingRules.find(r => r.id === item.dataset.ruleId);
+      if (rule) {
+        populateEditorFromRule(rule, refs);
+        updateRulesListActiveState(refs.rulesListContainer, rule.id);
+      }
+    }
+  });
+
+  // Re-fetch on focus – handles tab switches without a TAB_CHANGED message.
+  window.addEventListener("focus", () => {
+    void (async () => {
+      const newHostname = await getActiveTabHostname();
+      if (newHostname !== currentHostname) {
+        currentHostname = newHostname;
+        refs.hostPatternInput.value = currentHostname;
+      }
+      await loadRules();
+      renderRulesList(refs.rulesListContainer, allMatchingRules, editingRuleId, refs.noRulesMsg);
+    })();
   });
 });
 

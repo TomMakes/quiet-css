@@ -548,7 +548,7 @@ Implementation: inject a single `<div id="quietcss-highlight-overlay">` containi
 ├────────────────────────────┤
 │  TARGET SITE/URL           │
 │  youtube.com         [.*]  │  ← editable host pattern; [.*] toggles regex mode
-│                            │
+│  [Select Element]          │
 │  ┌ EDITING ─────────────┐  │
 │  │ Name                 │  │
 │  │ [#secondary        ] │  │  ← auto-populated from selector (editable)

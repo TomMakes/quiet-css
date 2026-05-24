@@ -28,7 +28,6 @@ class EditMode {
 
         switch (msg.type) {
           case "ENTER_EDIT_MODE": {
-            console.log("QCSS edit_mode.ts: Attempted to enter edit mode");
             const submode = msg.payload.submode as string;
             if (submode === "style") {
               this._enterStyleMode();

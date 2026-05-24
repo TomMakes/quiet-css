@@ -7,31 +7,88 @@
   <link rel="stylesheet" href="sidebar.css">
 </head>
 <body>
+
   <header class="sidebar-header">
-    <h1 class="sidebar-title">QuietCSS</h1>
+    <div class="sidebar-header-row">
+      <span class="sidebar-logo">◈</span>
+      <span class="sidebar-title">QuietCSS</span>
+      <div class="sidebar-header-actions">
+        <button id="help-btn" class="icon-btn" title="Help">?</button>
+        <button id="collapse-btn" class="icon-btn" title="Collapse">−</button>
+      </div>
+    </div>
     <nav class="tab-bar">
-      <button class="tab-btn tab-btn--active" id="tab-styles">[Styles]</button>
-      <button class="tab-btn" id="tab-blinds">[Blinds]</button>
+      <button class="tab-btn tab-btn--active" id="tab-styles">Styles</button>
+      <button class="tab-btn" id="tab-blinds">Blinds</button>
     </nav>
   </header>
 
-  <main class="sidebar-content">
-    <section class="tab-panel" id="panel-styles">
-      <p class="placeholder-text">No rules yet.</p>
-    </section>
-    <section class="tab-panel tab-panel--hidden" id="panel-blinds">
-      <p class="placeholder-text">No blinds yet.</p>
-    </section>
-  </main>
+  <main class="sidebar-content" id="sidebar-content">
 
-  <footer class="sidebar-footer">
-    <div id="rules-count" class="rules-count">Loading...</div>
-    <button id="ping-btn" class="btn">Send test message</button>
-    <button id="save-test-rule-btn" class="btn">Save test rule (YouTube)</button>
-    <button id="pick-style-btn" class="btn">Pick Element (Style mode)</button>
-    <button id="exit-edit-btn" class="btn">Exit Edit Mode</button>
-    <pre id="response-area" class="response-area"></pre>
-  </footer>
+    <!-- ── Styles Tab ─────────────────────────────────────────────────── -->
+    <section class="tab-panel" id="panel-styles">
+
+      <div class="section-label">TARGET SITE/URL</div>
+      <div class="host-row">
+        <input id="host-pattern-input" type="text" class="host-input"
+               placeholder="e.g. youtube.com" autocomplete="off" spellcheck="false">
+        <button id="regex-toggle-btn" class="regex-btn" title="Toggle regex mode">[.*]</button>
+      </div>
+
+      <button id="select-element-btn" class="btn btn--secondary select-element-btn">Select Element</button>
+
+      <div class="editor-panel">
+        <div class="editor-panel-header">EDITING</div>
+
+        <div class="field-group">
+          <label class="field-label" for="rule-name-input">Name</label>
+          <input id="rule-name-input" type="text" class="field-input"
+                 placeholder="Rule name" autocomplete="off">
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="rule-selector-input">Selector</label>
+          <input id="rule-selector-input" type="text" class="field-input"
+                 placeholder="CSS selector" autocomplete="off" spellcheck="false">
+          <button id="auto-gen-btn" class="btn btn--secondary btn--small">⟳ Auto-generate</button>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="rule-css-input">CSS</label>
+          <textarea id="rule-css-input" class="field-textarea" rows="4"
+                    placeholder="e.g. display: none;" spellcheck="false"></textarea>
+        </div>
+
+        <div class="check-row">
+          <label class="check-label">
+            <input type="checkbox" id="important-checkbox" checked>
+            !important
+          </label>
+          <label class="check-label">
+            <input type="checkbox" id="force-reapply-checkbox">
+            Force reapply
+          </label>
+        </div>
+
+        <div class="editor-actions">
+          <button id="save-rule-btn" class="btn btn--primary">Save</button>
+          <button id="cancel-rule-btn" class="btn">Cancel</button>
+        </div>
+      </div>
+
+      <div class="section-label">SAVED RULES</div>
+      <div id="rules-list" class="rules-list">
+        <p class="placeholder-text" id="no-rules-msg">No rules yet.</p>
+      </div>
+
+    </section>
+
+    <!-- ── Blinds Tab ──────────────────────────────────────────────────── -->
+    <section class="tab-panel tab-panel--hidden" id="panel-blinds">
+      <p class="placeholder-text">Blinds are coming in Build Step 9.</p>
+    </section>
+
+  </main>
 
   <script type="module" src="../dist/sidebar/sidebar.js"></script>
 </body>
