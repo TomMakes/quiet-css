@@ -165,6 +165,40 @@ describe("sidebar — CSS Editor Panel", () => {
     expect(msg.style.display).toBe("none");
   });
 
+  it("TAB_CHANGED updates the target host and reloads matching rules", async () => {
+    const switchedRule = makeRule({ id: "rule-2", hostPattern: "example.com", name: "Example rule" });
+    mockSendMessage.mockImplementation(async (msg: { type: string; payload?: { hostname?: string } }) => {
+      if (msg.type === "GET_RULES") {
+        if (msg.payload?.hostname === HOSTNAME) {
+          return { type: "RULES_DATA", payload: { rules: [], blinds: [] } };
+        }
+        if (msg.payload?.hostname === "example.com") {
+          return { type: "RULES_DATA", payload: { rules: [switchedRule], blinds: [] } };
+        }
+      }
+      return { type: "OK", payload: {} };
+    });
+
+    await loadSidebar();
+
+    for (const listener of capturedListeners) {
+      listener({
+        type: "TAB_CHANGED",
+        payload: {
+          tabId: 42,
+          hostname: "example.com",
+          url: "https://example.com/page",
+        },
+      });
+    }
+    await flushAsync();
+
+    const input = document.getElementById("host-pattern-input") as HTMLInputElement;
+    expect(input.value).toBe("example.com");
+    expect(document.querySelectorAll(".rule-item")).toHaveLength(1);
+    expect(document.querySelector(".rule-item-name")?.textContent).toBe(switchedRule.name);
+  });
+
   // ── ELEMENT_PICKED ──────────────────────────────────────────────────────────
 
   it("ELEMENT_PICKED populates editor with selector, host, and CSS suggestion", async () => {

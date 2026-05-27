@@ -9,18 +9,43 @@ type MsgHandler = (
   sender: unknown
 ) => Promise<unknown> | undefined;
 
+type TabActivatedListener = (activeInfo: { tabId: number }) => void;
+type TabUpdatedListener = (
+  tabId: number,
+  changeInfo: { url?: string },
+  tab: { active: boolean }
+) => void;
+
 let handler: MsgHandler;
+let activatedListener: TabActivatedListener;
+let updatedListener: TabUpdatedListener;
 
 const mockStorageGet = vi.fn();
 const mockStorageSet = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+const mockTabsGet = vi.fn();
+const mockRuntimeSendMessage = vi.fn();
 
 // Stub the browser global BEFORE the dynamic import below so it is in place
 // when the module's top-level addListener call executes.
 vi.stubGlobal("browser", {
   runtime: {
+    sendMessage: mockRuntimeSendMessage,
     onMessage: {
       addListener: (h: MsgHandler) => {
         handler = h;
+      },
+    },
+  },
+  tabs: {
+    get: mockTabsGet,
+    onActivated: {
+      addListener: (listener: TabActivatedListener) => {
+        activatedListener = listener;
+      },
+    },
+    onUpdated: {
+      addListener: (listener: TabUpdatedListener) => {
+        updatedListener = listener;
       },
     },
   },
@@ -93,6 +118,8 @@ describe("service_worker message handler", () => {
     mockStorageGet.mockReset();
     mockStorageSet.mockReset();
     mockStorageSet.mockResolvedValue(undefined);
+    mockTabsGet.mockReset();
+    mockRuntimeSendMessage.mockReset();
   });
 
   // ---------- PING ----------
@@ -104,6 +131,43 @@ describe("service_worker message handler", () => {
   });
 
   // ---------- GET_RULES ----------
+
+  it("broadcasts TAB_CHANGED when the active tab changes", async () => {
+    // A mock for when broadcastTabChanged gets the new tab values.
+    mockTabsGet.mockResolvedValue({ id: 7, url: "https://www.youtube.com/watch?v=abc" });
+
+    activatedListener({ tabId: 7 });
+    await Promise.resolve();
+
+    expect(mockRuntimeSendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "TAB_CHANGED",
+        payload: expect.objectContaining({
+          tabId: 7,
+          hostname: "www.youtube.com",
+          url: "https://www.youtube.com/watch?v=abc",
+        }),
+      })
+    );
+  });
+
+  it("broadcasts TAB_CHANGED when the active tab URL changes", async () => {
+    mockTabsGet.mockResolvedValue({ id: 8, url: "https://example.com/page" });
+
+    updatedListener(8, { url: "https://example.com/page" }, { active: true });
+    await Promise.resolve();
+
+    expect(mockRuntimeSendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "TAB_CHANGED",
+        payload: expect.objectContaining({
+          tabId: 8,
+          hostname: "example.com",
+          url: "https://example.com/page",
+        }),
+      })
+    );
+  });
 
   it("GET_RULES returns rules and blinds matching the hostname", async () => {
     const rule = makeRule({ hostPattern: "example.com" });

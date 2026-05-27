@@ -39,6 +39,33 @@ async function saveAllBlinds(blinds: Blind[]): Promise<void> {
   await browser.storage.local.set({ [BLINDS_KEY]: blinds });
 }
 
+async function broadcastTabChanged(tabId: number): Promise<void> {
+  try {
+    const tab = await browser.tabs.get(tabId);
+    const url = tab.url ?? "";
+    const hostname = url ? new URL(url).hostname : "";
+
+    browser.runtime.sendMessage({
+      type: "TAB_CHANGED",
+      payload: { tabId, hostname, url },
+    }).catch(() => {
+      // Sidebar may be closed; suppress connection errors.
+    });
+  } catch (err) {
+    console.warn("[QuietCSS SW] Failed to broadcast tab change:", err);
+  }
+}
+
+browser.tabs.onActivated.addListener(activeInfo => {
+  void broadcastTabChanged(activeInfo.tabId);
+});
+
+browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.url && tab.active) {
+    void broadcastTabChanged(tabId);
+  }
+});
+
 // ---------- Message handler ----------
 
 browser.runtime.onMessage.addListener(
