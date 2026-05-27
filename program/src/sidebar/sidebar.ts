@@ -35,9 +35,12 @@ async function loadRules(): Promise<void> {
   }
 }
 
-async function relayToContentScript(type: string, payload: object): Promise<void> {
+async function relayToContentScript<T extends QCRelayToContentScriptType>(
+  type: T,
+  payload: QCRelayToContentScriptPayloadMap[T],
+): Promise<void> {
   try {
-    await browser.runtime.sendMessage({ type, payload });
+    await browser.runtime.sendMessage({ type, payload } as QCRelayToContentScriptMessage<T>);
   } catch {
     // Suppress – content script may not be available on this page.
   }

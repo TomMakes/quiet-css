@@ -32,6 +32,36 @@ declare interface ValidationResult {
   error?: string;
 }
 
+declare type QCRelayToContentScriptType =
+  | "ENTER_EDIT_MODE"
+  | "EXIT_EDIT_MODE"
+  | "HIGHLIGHT_SELECTOR"
+  | "APPLY_RULE_PREVIEW"
+  | "REMOVE_RULE_PREVIEW"
+  | "INJECT_RULE"
+  | "REMOVE_RULE"
+  | "GENERATE_SELECTOR";
+
+declare interface QCRelayToContentScriptPayloadMap {
+  ENTER_EDIT_MODE: { submode: "style" | "blind" };
+  EXIT_EDIT_MODE: Record<string, never>;
+  HIGHLIGHT_SELECTOR: { selector: string };
+  APPLY_RULE_PREVIEW: { css: string; selector: string };
+  REMOVE_RULE_PREVIEW: { selector: string };
+  INJECT_RULE: { rule: Rule };
+  REMOVE_RULE: { id: string };
+  GENERATE_SELECTOR: Record<string, never>;
+}
+
+declare type QCRelayToContentScriptMessage<
+  T extends QCRelayToContentScriptType = QCRelayToContentScriptType,
+> = {
+  [K in T]: {
+    type: K;
+    payload: QCRelayToContentScriptPayloadMap[K];
+  };
+}[T];
+
 declare type QCMessage = {
   type: string;
   payload: Record<string, unknown>;
