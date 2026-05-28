@@ -601,12 +601,12 @@ Implementation: inject a single `<div id="quietcss-highlight-overlay">` containi
 
 ### Acceptance Criteria
 
-- [ ] Picking an element populates target site, name, selector, computed styles in CSS textarea.
-- [ ] Name auto-populates to selector; clearing and blurring restores selector as name.
-- [ ] Manually setting a name prevents selector edits from overwriting it.
-- [ ] Saving a rule adds it to the saved rules list immediately.
-- [ ] Toggling enable/disable updates storage and reapplies or removes the style tag on the active page.
-- [ ] Deleting a rule removes it from storage and removes its style tag from the active page.
+- [X] Picking an element populates target site, name, selector, computed styles in CSS textarea.
+- [X] Name auto-populates to selector; clearing and blurring restores selector as name.
+- [X] Manually setting a name prevents selector edits from overwriting it.
+- [X] Saving a rule adds it to the saved rules list immediately.
+- [X] Toggling enable/disable updates storage and reapplies or removes the style tag on the active page.
+- [X] Deleting a rule removes it from storage and removes its style tag from the active page.
 
 ---
 

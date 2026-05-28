@@ -384,7 +384,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   refs.nameInput.addEventListener("blur", () => {
-    if (!nameIsCustom && refs.nameInput.value.trim() === "") {
+    if (!nameIsCustom || refs.nameInput.value.trim() === "") {
       refs.nameInput.value = refs.selectorInput.value;
     }
   });
