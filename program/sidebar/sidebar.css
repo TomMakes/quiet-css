@@ -171,6 +171,23 @@ body {
   color: #7ab8f5;
 }
 
+.host-regex-indicator {
+  font-size: 13px;
+  font-weight: bold;
+  line-height: 1;
+  min-width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.host-regex-indicator--valid {
+  color: #4caf50;
+}
+
+.host-regex-indicator--invalid {
+  color: #f44336;
+}
+
 /* ── Editor panel ─────────────────────────────────────────────────────────── */
 
 .editor-panel {

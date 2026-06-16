@@ -2,6 +2,7 @@
 
 // ── Module-level state ─────────────────────────────────────────────────────
 let currentHostname = "";
+let currentUrl = "";
 let allMatchingRules: Rule[] = [];
 let editingRuleId: string | null = null;
 let nameIsCustom = false;
@@ -10,13 +11,13 @@ let isPickingElement = false;
 
 // ── Utility functions ──────────────────────────────────────────────────────
 
-async function getActiveTabHostname(): Promise<string> {
+async function getActiveTabHostname(): Promise<{ hostname: string; url: string }> {
   try {
     const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-    const url = tabs[0]?.url;
-    return url ? new URL(url).hostname : "";
+    const url = tabs[0]?.url ?? "";
+    return { hostname: url ? new URL(url).hostname : "", url };
   } catch {
-    return "";
+    return { hostname: "", url: "" };
   }
 }
 
@@ -24,7 +25,7 @@ async function loadRules(): Promise<void> {
   try {
     const response = await browser.runtime.sendMessage({
       type: "GET_RULES",
-      payload: { hostname: currentHostname },
+      payload: { hostname: currentHostname, url: currentUrl },
     }) as QCMessage;
     if (response.type === "RULES_DATA") {
       allMatchingRules = response.payload.rules as Rule[];
@@ -139,11 +140,43 @@ function updateRegexToggleVisual(btn: HTMLButtonElement, active: boolean): void 
   btn.classList.toggle("regex-btn--active", active);
 }
 
+function updateHostRegexIndicator(el: HTMLElement | null, valid: boolean): void {
+  if (!el) return;
+  el.classList.remove("host-regex-indicator--valid", "host-regex-indicator--invalid");
+  el.classList.add(valid ? "host-regex-indicator--valid" : "host-regex-indicator--invalid");
+  el.textContent = valid ? "✓" : "✕";
+}
+
+function clearHostRegexIndicator(el: HTMLElement | null): void {
+  if (!el) return;
+  el.classList.remove("host-regex-indicator--valid", "host-regex-indicator--invalid");
+  el.textContent = "";
+}
+
+function validateHostPattern(refs: EditorRefs): void {
+  if (!isRegex) {
+    clearHostRegexIndicator(refs.hostRegexIndicator);
+    return;
+  }
+  const val = refs.hostPatternInput.value;
+  if (!val) {
+    clearHostRegexIndicator(refs.hostRegexIndicator);
+    return;
+  }
+  try {
+    new RegExp(val);
+    updateHostRegexIndicator(refs.hostRegexIndicator, true);
+  } catch {
+    updateHostRegexIndicator(refs.hostRegexIndicator, false);
+  }
+}
+
 // ── Editor refs type ───────────────────────────────────────────────────────
 
 interface EditorRefs {
   hostPatternInput: HTMLInputElement;
   regexToggleBtn: HTMLButtonElement;
+  hostRegexIndicator: HTMLElement | null;
   nameInput: HTMLInputElement;
   selectorInput: HTMLInputElement;
   selectorConfidenceEl: HTMLElement | null;
@@ -247,6 +280,11 @@ function populateEditorFromRule(rule: Rule, refs: EditorRefs): void {
   refs.forceReapplyCheckbox.checked = rule.forceReapply;
   updateRegexToggleVisual(refs.regexToggleBtn, isRegex);
   clearSelectorIndicators(refs);
+  if (isRegex && rule.hostPattern) {
+    validateHostPattern(refs);
+  } else {
+    clearHostRegexIndicator(refs.hostRegexIndicator);
+  }
 }
 
 function populateEditorFromPick(
@@ -265,6 +303,7 @@ function populateEditorFromPick(
   refs.forceReapplyCheckbox.checked = false;
   updateRegexToggleVisual(refs.regexToggleBtn, false);
   clearSelectorIndicators(refs);
+  clearHostRegexIndicator(refs.hostRegexIndicator);
 }
 
 function clearEditor(refs: EditorRefs): void {
@@ -279,6 +318,7 @@ function clearEditor(refs: EditorRefs): void {
   refs.forceReapplyCheckbox.checked = false;
   updateRegexToggleVisual(refs.regexToggleBtn, false);
   clearSelectorIndicators(refs);
+  clearHostRegexIndicator(refs.hostRegexIndicator);
 }
 
 // ── Rule action helpers ────────────────────────────────────────────────────
@@ -378,6 +418,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const refs: EditorRefs = {
     hostPatternInput:     document.getElementById("host-pattern-input")     as HTMLInputElement,
     regexToggleBtn:       document.getElementById("regex-toggle-btn")       as HTMLButtonElement,
+    hostRegexIndicator:   document.getElementById("host-regex-indicator"),
     nameInput:            document.getElementById("rule-name-input")        as HTMLInputElement,
     selectorInput:        document.getElementById("rule-selector-input")    as HTMLInputElement,
     selectorConfidenceEl: document.getElementById("selector-confidence"),
@@ -391,7 +432,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   // ── Initialise ─────────────────────────────────────────────────────────
-  currentHostname = await getActiveTabHostname();
+  ({ hostname: currentHostname, url: currentUrl } = await getActiveTabHostname());
   refs.hostPatternInput.value = currentHostname;
   await loadRules();
   renderRulesList(refs.rulesListContainer, allMatchingRules, editingRuleId, refs.noRulesMsg);
@@ -431,8 +472,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     if (msg.type === "TAB_CHANGED") {
-      const p = msg.payload as { hostname: string };
+      const p = msg.payload as { hostname: string; url?: string };
       currentHostname = p.hostname;
+      currentUrl = p.url ?? "";
       refs.hostPatternInput.value = currentHostname;
       void loadRules().then(() =>
         renderRulesList(refs.rulesListContainer, allMatchingRules, editingRuleId, refs.noRulesMsg)
@@ -474,6 +516,17 @@ document.addEventListener("DOMContentLoaded", async () => {
   refs.regexToggleBtn.addEventListener("click", () => {
     isRegex = !isRegex;
     updateRegexToggleVisual(refs.regexToggleBtn, isRegex);
+    if (isRegex) {
+      validateHostPattern(refs);
+    } else {
+      clearHostRegexIndicator(refs.hostRegexIndicator);
+    }
+  });
+
+  refs.hostPatternInput.addEventListener("input", () => {
+    if (isRegex) {
+      validateHostPattern(refs);
+    }
   });
 
   // ── Name field behaviours ───────────────────────────────────────────────
@@ -556,9 +609,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Re-fetch on focus – handles tab switches without a TAB_CHANGED message.
   window.addEventListener("focus", () => {
     void (async () => {
-      const newHostname = await getActiveTabHostname();
-      if (newHostname !== currentHostname) {
-        currentHostname = newHostname;
+      const tab = await getActiveTabHostname();
+      if (tab.hostname !== currentHostname || tab.url !== currentUrl) {
+        currentHostname = tab.hostname;
+        currentUrl = tab.url;
         refs.hostPatternInput.value = currentHostname;
       }
       await loadRules();

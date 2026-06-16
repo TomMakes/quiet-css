@@ -179,7 +179,7 @@ describe("service_worker message handler", () => {
     });
 
     const result = (await (handler(
-      { type: "GET_RULES", payload: { hostname: "example.com" } },
+      { type: "GET_RULES", payload: { hostname: "example.com", url: "https://example.com/page" } },
       {}
     ) as Promise<unknown>)) as { type: string; payload: { rules: Rule[]; blinds: Blind[] } };
 
@@ -197,15 +197,15 @@ describe("service_worker message handler", () => {
     });
 
     const result = (await (handler(
-      { type: "GET_RULES", payload: { hostname: "example.com" } },
+      { type: "GET_RULES", payload: { hostname: "example.com", url: "https://example.com/page" } },
       {}
     ) as Promise<unknown>)) as { type: string; payload: { rules: Rule[] } };
 
     expect(result.payload.rules).toHaveLength(0);
   });
 
-  it("GET_RULES matches via regex hostPattern", async () => {
-    const rule = makeRule({ hostPattern: ".*\\.youtube\\.com", isRegex: true });
+  it("GET_RULES matches via regex hostPattern against the full URL", async () => {
+    const rule = makeRule({ hostPattern: ".*\.youtube\.com", isRegex: true });
     mockStorageGet.mockImplementation(async (key: string) => {
       if (key === RULES_KEY) return { [RULES_KEY]: [rule] };
       if (key === BLINDS_KEY) return {};
@@ -213,11 +213,35 @@ describe("service_worker message handler", () => {
     });
 
     const result = (await (handler(
-      { type: "GET_RULES", payload: { hostname: "www.youtube.com" } },
+      { type: "GET_RULES", payload: { hostname: "www.youtube.com", url: "https://www.youtube.com/watch?v=abc" } },
       {}
     ) as Promise<unknown>)) as { type: string; payload: { rules: Rule[] } };
 
     expect(result.payload.rules).toHaveLength(1);
+  });
+
+  it("GET_RULES regex matches a pattern that includes a URL path segment", async () => {
+    // Pattern targets a specific path — would never match the bare hostname alone.
+    const rule = makeRule({ hostPattern: "www\.youtube\.com\/", isRegex: true });
+    mockStorageGet.mockImplementation(async (key: string) => {
+      if (key === RULES_KEY) return { [RULES_KEY]: [rule] };
+      if (key === BLINDS_KEY) return {};
+      return {};
+    });
+
+    // URL that matches the pattern.
+    const hit = (await (handler(
+      { type: "GET_RULES", payload: { hostname: "www.youtube.com", url: "https://www.youtube.com/watch?v=abc" } },
+      {}
+    ) as Promise<unknown>)) as { type: string; payload: { rules: Rule[] } };
+    expect(hit.payload.rules).toHaveLength(1);
+
+    // Bare hostname URL — should NOT match because the pattern requires a slash.
+    const miss = (await (handler(
+      { type: "GET_RULES", payload: { hostname: "www.youtube.com", url: "https://www.youtube.com" } },
+      {}
+    ) as Promise<unknown>)) as { type: string; payload: { rules: Rule[] } };
+    expect(miss.payload.rules).toHaveLength(0);
   });
 
   // ---------- SAVE_RULE ----------

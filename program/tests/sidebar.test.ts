@@ -29,6 +29,7 @@ const SIDEBAR_HTML = `
   <main id="sidebar-content"></main>
   <input  id="host-pattern-input"   type="text" />
   <button id="regex-toggle-btn">[.*]</button>
+  <span   id="host-regex-indicator" class="host-regex-indicator"></span>
   <input  id="rule-name-input"      type="text" />
   <div class="selector-row">
     <input  id="rule-selector-input"  type="text" />
@@ -565,6 +566,81 @@ describe("sidebar — CSS Editor Panel", () => {
     btn.click();
     await flushAsync();
     expect(btn.classList.contains("regex-btn--active")).toBe(false);
+  });
+
+  it("enabling regex mode with a valid pattern shows a green checkmark indicator", async () => {
+    await loadSidebar();
+    (document.getElementById("host-pattern-input") as HTMLInputElement).value = "youtube\\.com";
+    const btn = document.getElementById("regex-toggle-btn") as HTMLButtonElement;
+    btn.click();
+    await flushAsync();
+    const indicator = document.getElementById("host-regex-indicator") as HTMLElement;
+    expect(indicator.classList.contains("host-regex-indicator--valid")).toBe(true);
+    expect(indicator.textContent).toBe("✓");
+  });
+
+  it("enabling regex mode with an invalid pattern shows a red X indicator", async () => {
+    await loadSidebar();
+    (document.getElementById("host-pattern-input") as HTMLInputElement).value = "[invalid";
+    const btn = document.getElementById("regex-toggle-btn") as HTMLButtonElement;
+    btn.click();
+    await flushAsync();
+    const indicator = document.getElementById("host-regex-indicator") as HTMLElement;
+    expect(indicator.classList.contains("host-regex-indicator--invalid")).toBe(true);
+    expect(indicator.textContent).toBe("✕");
+  });
+
+  it("typing a valid regex in the host field (regex mode on) shows green checkmark", async () => {
+    await loadSidebar();
+    const btn = document.getElementById("regex-toggle-btn") as HTMLButtonElement;
+    btn.click();
+    await flushAsync();
+    const hostInput = document.getElementById("host-pattern-input") as HTMLInputElement;
+    hostInput.value = ".*\\.youtube\\.com";
+    hostInput.dispatchEvent(new Event("input"));
+    await flushAsync();
+    const indicator = document.getElementById("host-regex-indicator") as HTMLElement;
+    expect(indicator.classList.contains("host-regex-indicator--valid")).toBe(true);
+    expect(indicator.textContent).toBe("✓");
+  });
+
+  it("typing an invalid regex in the host field (regex mode on) shows red X", async () => {
+    await loadSidebar();
+    const btn = document.getElementById("regex-toggle-btn") as HTMLButtonElement;
+    btn.click();
+    await flushAsync();
+    const hostInput = document.getElementById("host-pattern-input") as HTMLInputElement;
+    hostInput.value = "((unclosed";
+    hostInput.dispatchEvent(new Event("input"));
+    await flushAsync();
+    const indicator = document.getElementById("host-regex-indicator") as HTMLElement;
+    expect(indicator.classList.contains("host-regex-indicator--invalid")).toBe(true);
+    expect(indicator.textContent).toBe("✕");
+  });
+
+  it("turning regex mode off clears the validation indicator", async () => {
+    await loadSidebar();
+    const btn = document.getElementById("regex-toggle-btn") as HTMLButtonElement;
+    const hostInput = document.getElementById("host-pattern-input") as HTMLInputElement;
+    hostInput.value = "youtube\\.com";
+    btn.click();        // on
+    await flushAsync();
+    btn.click();        // off
+    await flushAsync();
+    const indicator = document.getElementById("host-regex-indicator") as HTMLElement;
+    expect(indicator.classList.contains("host-regex-indicator--valid")).toBe(false);
+    expect(indicator.classList.contains("host-regex-indicator--invalid")).toBe(false);
+    expect(indicator.textContent).toBe("");
+  });
+
+  it("typing in the host field in plain (non-regex) mode shows no indicator", async () => {
+    await loadSidebar();
+    const hostInput = document.getElementById("host-pattern-input") as HTMLInputElement;
+    hostInput.value = "example.com";
+    hostInput.dispatchEvent(new Event("input"));
+    await flushAsync();
+    const indicator = document.getElementById("host-regex-indicator") as HTMLElement;
+    expect(indicator.textContent).toBe("");
   });
 
   // ── Select Element button ────────────────────────────────────────────────────

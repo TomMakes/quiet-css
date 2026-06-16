@@ -8,10 +8,10 @@ const BLINDS_KEY = "quietcss_blinds";
 
 // ---------- Hostname matching ----------
 
-function matchesHost(pattern: string, isRegex: boolean, hostname: string): boolean {
+function matchesHost(pattern: string, isRegex: boolean, hostname: string, url: string): boolean {
   if (isRegex) {
     try {
-      return new RegExp(pattern).test(hostname);
+      return new RegExp(pattern).test(url);
     } catch {
       return false;
     }
@@ -80,11 +80,12 @@ browser.runtime.onMessage.addListener(
 
       case "GET_RULES": {
         const hostname = msg.payload.hostname as string;
+        const url = (msg.payload.url as string | undefined) ?? "";
         return (async () => {
           const allRules = await getAllRules();
           const allBlinds = await getAllBlinds();
-          const rules = allRules.filter(r => matchesHost(r.hostPattern, r.isRegex, hostname));
-          const blinds = allBlinds.filter(b => matchesHost(b.hostPattern, b.isRegex, hostname));
+          const rules = allRules.filter(r => matchesHost(r.hostPattern, r.isRegex, hostname, url));
+          const blinds = allBlinds.filter(b => matchesHost(b.hostPattern, b.isRegex, hostname, url));
           return { type: "RULES_DATA", payload: { rules, blinds } };
         })();
       }

@@ -299,7 +299,7 @@ The service worker handles the following message types. All storage operations u
 
 | Message (→ Background) | Response (→ Sender) |
 |---|---|
-| `GET_RULES { hostname }` | `RULES_DATA { rules, blinds }` |
+| `GET_RULES { hostname, url }` | `RULES_DATA { rules, blinds }` |
 | `SAVE_RULE { rule }` | `RULE_SAVED { rule }` |
 | `DELETE_RULE { id }` | `RULE_DELETED { id }` |
 | `TOGGLE_RULE { id, enabled }` | `RULE_UPDATED { rule }` |
@@ -362,7 +362,7 @@ function matchesHost(pattern, isRegex, hostname) {
 
 Runs at `document_start`.
 **Sequence**:
-1. Send `GET_RULES { hostname: location.hostname }` to background.
+1. Send `GET_RULES { hostname: location.hostname, url: location.href }` to background.
 2. Receive `RULES_DATA { rules, blinds }`.
 3. For each enabled rule matching the current host: inject a `<style>` tag into `<head>` with the rule's CSS scoped to its selector.
 4. For each enabled blind matching the current host: call `blind.js` to render it (blind.js must be tolerant of being called before `document.body` exists — defer to `DOMContentLoaded` if needed).
@@ -643,10 +643,10 @@ Attempt the following in order, returning the first result with `confidence: "hi
 
 ### Acceptance Criteria
 
-- [ ] Auto-generate produces a working selector for common elements (YouTube sidebar, Reddit vote buttons, nav bars).
-- [ ] Confidence indicator displays correctly for each confidence level.
-- [ ] User can override the auto-generated selector by typing in the field.
-- [ ] Invalid selectors (syntax error) show a red indicator and block saving until corrected.
+- [X] Auto-generate produces a working selector for common elements (YouTube sidebar, Reddit vote buttons, nav bars).
+- [X] Confidence indicator displays correctly for each confidence level.
+- [X] User can override the auto-generated selector by typing in the field.
+- [X] Invalid selectors (syntax error) show a red indicator and block saving until corrected.
 
 ---
 
@@ -670,11 +670,11 @@ Attempt the following in order, returning the first result with `confidence: "hi
 
 ### Acceptance Criteria
 
-- [ ] Clicking `[.*]` toggles the button to a blue/pressed visual state.
-- [ ] When regex mode is on, typing a valid regex in the host pattern field shows a green checkmark.
-- [ ] When regex mode is on, typing an invalid regex shows a red X.
-- [ ] Turning regex mode off removes all validation indicators.
-- [ ] `isRegex` state is saved correctly with the rule.
+- [X] Clicking `[.*]` toggles the button to a blue/pressed visual state.
+- [X] When regex mode is on, typing a valid regex in the host pattern field shows a green checkmark.
+- [X] When regex mode is on, typing an invalid regex shows a red X.
+- [X] Turning regex mode off removes all validation indicators.
+- [X] `isRegex` state is saved correctly with the rule.
 
 ---
 
@@ -894,7 +894,7 @@ All messages follow `{ type: string, payload: object }`. The background service 
 
 | Type | Payload | Description |
 |---|---|---|
-| `GET_RULES` | `{ hostname }` | Fetch all rules + blinds matching hostname |
+| `GET_RULES` | `{ hostname, url }` | Fetch all rules + blinds matching hostname |
 | `SAVE_RULE` | `{ rule }` | Create or update a rule |
 | `DELETE_RULE` | `{ id }` | Delete a rule by ID |
 | `TOGGLE_RULE` | `{ id, enabled }` | Enable or disable a rule |

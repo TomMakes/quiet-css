@@ -14,7 +14,7 @@
   try {
     const response = (await browser.runtime.sendMessage({
       type: "GET_RULES",
-      payload: { hostname },
+      payload: { hostname, url: location.href },
     })) as { type: string; payload: { rules: Rule[]; blinds: Blind[] } };
     if (!response || response.type !== "RULES_DATA") return;
     rules = response.payload.rules;
