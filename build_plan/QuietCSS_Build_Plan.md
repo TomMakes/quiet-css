@@ -492,7 +492,7 @@ Activates when `submode === "style"`.
 **Click behavior:**
 - Intercept `click` with `capture: true` and `preventDefault()` + `stopPropagation()`.
 - Lock the selection: freeze the highlight overlay on the clicked element.
-- Send `ELEMENT_PICKED { selector, computedStyles, tagName }` to the background (to be relayed to the sidebar).
+- Send `ELEMENT_PICKED { selector, confidence, computedStyles, tagName }` to the background (to be relayed to the sidebar).
 - `computedStyles` should include only: `display`, `visibility`, `opacity`, `animation`, `position`, `z-index`, `background`, `border`.
 
 
@@ -931,7 +931,7 @@ All messages follow `{ type: string, payload: object }`. The background service 
 
 | Type | Payload | Description |
 |---|---|---|
-| `ELEMENT_PICKED` | `{ selector, computedStyles, tagName }` | User clicked an element in picker mode |
+| `ELEMENT_PICKED` | `{ selector, confidence, computedStyles, tagName }` | User clicked an element in picker mode |
 | `BLIND_DRAWN` | `{ top, left, width, height }` | User finished drawing a blind rectangle |
 | `SELECTOR_GENERATED` | `{ selector, confidence }` | Result of auto-generation request |
 
