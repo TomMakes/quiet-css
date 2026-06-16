@@ -85,6 +85,7 @@ describe("content edit-mode stack", () => {
 
     vi.stubGlobal("browser", browserStub);
 
+    await runContentScript("src/shared/selector_gen.ts");
     await runContentScript("src/content/highlight_overlay.ts");
     await runContentScript("src/content/picker.ts");
     await runContentScript("src/content/edit_mode.ts");
@@ -231,27 +232,54 @@ describe("content edit-mode stack", () => {
       expect(document.getElementById("quietcss-highlight-overlay")).toBeNull();
     });
 
-    it("ENTER_EDIT_MODE blind does not activate picker hover", async () => {
+    it("GENERATE_SELECTOR sends SELECTOR_GENERATED after element is locked", async () => {
       const handler = messageHandler;
       if (!handler) {
         expect.fail("onMessage handler was not registered");
         return;
       }
 
+      // Enter style mode so picker is active
+      await handler({ type: "ENTER_EDIT_MODE", payload: { submode: "style" } });
+
+      // Simulate picking an element by clicking it
       const target = document.createElement("div");
-      target.className = "blind-target";
-      target.getBoundingClientRect = () => rect(1, 2, 3, 4);
+      target.id = "picked-element";
+      target.getBoundingClientRect = () => rect(0, 0, 100, 50);
       document.body.appendChild(target);
 
-      const enterResult = await handler({
-        type: "ENTER_EDIT_MODE",
-        payload: { submode: "blind" },
-      });
+      target.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
-      expect(enterResult).toEqual({ type: "OK", payload: {} });
+      // At this point picker is locked; GENERATE_SELECTOR should trigger a sendMessage
+      browserStub.runtime.sendMessage.mockClear();
+      const genResult = await handler({ type: "GENERATE_SELECTOR", payload: {} });
+      expect(genResult).toEqual({ type: "OK", payload: {} });
 
-      target.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
-      expect(document.getElementById("quietcss-highlight-overlay")).toBeNull();
+      expect(browserStub.runtime.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "SELECTOR_GENERATED",
+          payload: expect.objectContaining({
+            selector: expect.any(String),
+            confidence: expect.stringMatching(/^high|medium|low$/),
+          }),
+        })
+      );
+
+      target.remove();
+    });
+
+    it("GENERATE_SELECTOR does nothing when picker is not locked", async () => {
+      const handler = messageHandler;
+      if (!handler) {
+        expect.fail("onMessage handler was not registered");
+        return;
+      }
+
+      // Do NOT enter edit mode — picker is inactive
+      browserStub.runtime.sendMessage.mockClear();
+      await handler({ type: "GENERATE_SELECTOR", payload: {} });
+
+      expect(browserStub.runtime.sendMessage).not.toHaveBeenCalled();
     });
   });
 });

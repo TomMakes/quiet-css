@@ -17,6 +17,7 @@ class Picker {
 
   private _pickerActive = false;
   private _pickerLocked = false;         // true after an element is clicked
+  private _lockedElement: Element | null = null;
   private _pickerCursorTag: HTMLStyleElement | null = null;
   private readonly _boundHover = (event: MouseEvent) => this._onHover(event);
   private readonly _boundClick = (event: MouseEvent) => this._onClick(event);
@@ -44,6 +45,7 @@ class Picker {
     if (!this._pickerActive) return;
     this._pickerActive = false;
     this._pickerLocked = false;
+    this._lockedElement = null;
     document.removeEventListener("mouseover", this._boundHover, { capture: true });
     document.removeEventListener("click", this._boundClick, { capture: true });
     this._pickerCursorTag?.remove();
@@ -73,8 +75,9 @@ class Picker {
         target.closest?.("#quietcss-highlight-overlay")) return;
 
     this._pickerLocked = true;
+    this._lockedElement = target;
 
-    const selector = this._buildBasicSelector(target);
+    const result = SelectorGenerator.generateSelector(target);
     this._overlay.lockOverlay(target);
 
     const computed = window.getComputedStyle(target);
@@ -86,7 +89,8 @@ class Picker {
     browser.runtime.sendMessage({
       type: "ELEMENT_PICKED",
       payload: {
-        selector,
+        selector: result.selector,
+        confidence: result.confidence,
         computedStyles,
         tagName: target.tagName.toLowerCase(),
       },
@@ -96,31 +100,16 @@ class Picker {
   }
 
   /**
-   * Build a quick selector for the picked element.
-   * A full implementation arrives in Build Step 7 (selector_gen.ts).
-   * Precedence: #id → tag.classes → tag[data-attr] → tagname
+   * Called when the sidebar requests auto-generation for the currently locked element.
+   * Sends SELECTOR_GENERATED back to the sidebar via the background.
    */
-  private _buildBasicSelector(el: Element): string {
-    const id = el.getAttribute("id");
-    if (id && id.trim().length > 2 && !/^\d+$/.test(id)) {
-      return `#${CSS.escape(id)}`;
-    }
-
-    const stableClasses = Array.from(el.classList)
-      .filter(c => c.length >= 3 && !/^\d+$/.test(c))
-      .slice(0, 3);
-    if (stableClasses.length > 0) {
-      return el.tagName.toLowerCase() + stableClasses.map(c => `.${CSS.escape(c)}`).join("");
-    }
-
-    for (const attr of ["data-testid", "data-id", "aria-label", "role"] as const) {
-      const val = el.getAttribute(attr);
-      if (val) {
-        return `${el.tagName.toLowerCase()}[${attr}="${val.replace(/"/g, '\\"')}"]`;
-      }
-    }
-
-    return el.tagName.toLowerCase();
+  handleGenerateSelector(): void {
+    if (!this._pickerLocked || !this._lockedElement) return;
+    const result = SelectorGenerator.generateSelector(this._lockedElement);
+    browser.runtime.sendMessage({
+      type: "SELECTOR_GENERATED",
+      payload: result,
+    }).catch(() => {});
   }
 }
 

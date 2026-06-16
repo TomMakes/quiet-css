@@ -32,6 +32,11 @@ declare interface ValidationResult {
   error?: string;
 }
 
+declare interface SelectorResult {
+  selector: string;
+  confidence: "high" | "medium" | "low";
+}
+
 declare type QCRelayToContentScriptType =
   | "ENTER_EDIT_MODE"
   | "EXIT_EDIT_MODE"

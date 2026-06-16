@@ -146,11 +146,91 @@ interface EditorRefs {
   regexToggleBtn: HTMLButtonElement;
   nameInput: HTMLInputElement;
   selectorInput: HTMLInputElement;
+  selectorConfidenceEl: HTMLElement | null;
+  selectorInvalidMsg: HTMLElement | null;
   cssInput: HTMLTextAreaElement;
   importantCheckbox: HTMLInputElement;
   forceReapplyCheckbox: HTMLInputElement;
   rulesListContainer: HTMLElement;
   noRulesMsg: HTMLElement | null;
+  saveRuleBtn: HTMLButtonElement | null;
+}
+
+// ── Selector confidence + validation helpers ───────────────────────────────
+
+type SelectorConfidence = "high" | "medium" | "low" | "invalid";
+
+const CONFIDENCE_LABELS: Record<SelectorConfidence, string> = {
+  high:    "● High",
+  medium:  "● Medium (?)",
+  low:     "● Low (?)",
+  invalid: "✕ Invalid (?)",
+};
+
+const CONFIDENCE_TOOLTIPS: Partial<Record<SelectorConfidence, string>> = {
+  medium:  "This selector may match multiple elements. Consider refining it.",
+  low:     "This selector is position-based and may break if the page structure changes.",
+};
+
+function updateSelectorConfidence(
+  refs: EditorRefs,
+  confidence: SelectorConfidence,
+  errorMsg?: string,
+): void {
+  const el = refs.selectorConfidenceEl;
+  if (!el) return;
+  el.title = CONFIDENCE_TOOLTIPS[confidence] ?? "";
+  el.textContent = CONFIDENCE_LABELS[confidence];
+  el.className = `selector-confidence selector-confidence--${confidence}`;
+  if (refs.selectorInvalidMsg) {
+    if (confidence === "invalid" && errorMsg) {
+      refs.selectorInvalidMsg.textContent = errorMsg;
+      refs.selectorInvalidMsg.style.display = "";
+    } else {
+      refs.selectorInvalidMsg.textContent = "";
+      refs.selectorInvalidMsg.style.display = "none";
+    }
+  }
+  if (refs.saveRuleBtn) {
+    refs.saveRuleBtn.disabled = confidence === "invalid";
+  }
+}
+
+function clearSelectorIndicators(refs: EditorRefs): void {
+  if (refs.selectorConfidenceEl) {
+    refs.selectorConfidenceEl.title = "";
+    refs.selectorConfidenceEl.textContent = "";
+    refs.selectorConfidenceEl.className = "selector-confidence";
+  }
+  if (refs.selectorInvalidMsg) {
+    refs.selectorInvalidMsg.textContent = "";
+    refs.selectorInvalidMsg.style.display = "none";
+  }
+  if (refs.saveRuleBtn) {
+    refs.saveRuleBtn.disabled = false;
+  }
+}
+
+function validateSelectorInput(refs: EditorRefs): void {
+  const val = refs.selectorInput.value.trim();
+  if (!val) {
+    clearSelectorIndicators(refs);
+    return;
+  }
+  try {
+    document.querySelector(val);
+    // If no confidence is set from auto-gen, don't overwrite it with "high"
+    // unless the current class indicates invalid.
+    const el = refs.selectorConfidenceEl;
+    if (!el || el.classList.contains("selector-confidence--invalid") || !el.textContent) {
+      // Only clear the invalid state; don't stamp "high" on manually typed selectors
+      if (el?.classList.contains("selector-confidence--invalid")) {
+        clearSelectorIndicators(refs);
+      }
+    }
+  } catch (e) {
+    updateSelectorConfidence(refs, "invalid", String(e));
+  }
 }
 
 // ── Editor state helpers ───────────────────────────────────────────────────
@@ -166,6 +246,7 @@ function populateEditorFromRule(rule: Rule, refs: EditorRefs): void {
   refs.importantCheckbox.checked = /!important/i.test(rule.css);
   refs.forceReapplyCheckbox.checked = rule.forceReapply;
   updateRegexToggleVisual(refs.regexToggleBtn, isRegex);
+  clearSelectorIndicators(refs);
 }
 
 function populateEditorFromPick(
@@ -183,6 +264,7 @@ function populateEditorFromPick(
   refs.importantCheckbox.checked = true;
   refs.forceReapplyCheckbox.checked = false;
   updateRegexToggleVisual(refs.regexToggleBtn, false);
+  clearSelectorIndicators(refs);
 }
 
 function clearEditor(refs: EditorRefs): void {
@@ -196,6 +278,7 @@ function clearEditor(refs: EditorRefs): void {
   refs.importantCheckbox.checked = true;
   refs.forceReapplyCheckbox.checked = false;
   updateRegexToggleVisual(refs.regexToggleBtn, false);
+  clearSelectorIndicators(refs);
 }
 
 // ── Rule action helpers ────────────────────────────────────────────────────
@@ -297,11 +380,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     regexToggleBtn:       document.getElementById("regex-toggle-btn")       as HTMLButtonElement,
     nameInput:            document.getElementById("rule-name-input")        as HTMLInputElement,
     selectorInput:        document.getElementById("rule-selector-input")    as HTMLInputElement,
+    selectorConfidenceEl: document.getElementById("selector-confidence"),
+    selectorInvalidMsg:   document.getElementById("selector-invalid-msg"),
     cssInput:             document.getElementById("rule-css-input")         as HTMLTextAreaElement,
     importantCheckbox:    document.getElementById("important-checkbox")     as HTMLInputElement,
     forceReapplyCheckbox: document.getElementById("force-reapply-checkbox") as HTMLInputElement,
     rulesListContainer:   document.getElementById("rules-list")             as HTMLElement,
     noRulesMsg:           document.getElementById("no-rules-msg"),
+    saveRuleBtn:          saveRuleBtn,
   };
 
   // ── Initialise ─────────────────────────────────────────────────────────
@@ -317,6 +403,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (msg.type === "ELEMENT_PICKED") {
       const p = msg.payload as {
         selector: string;
+        confidence: "high" | "medium" | "low";
         computedStyles: Record<string, string>;
         tagName: string;
       };
@@ -328,7 +415,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         selectElementBtn.classList.remove("select-element-btn--picking");
       }
       populateEditorFromPick(p.selector, p.computedStyles, refs);
+      updateSelectorConfidence(refs, p.confidence);
       updateRulesListActiveState(refs.rulesListContainer, null);
+      return Promise.resolve({ type: "ACK", payload: {} });
+    }
+
+    if (msg.type === "SELECTOR_GENERATED") {
+      const p = msg.payload as { selector: string; confidence: "high" | "medium" | "low" };
+      refs.selectorInput.value = p.selector;
+      if (!nameIsCustom) {
+        refs.nameInput.value = p.selector;
+      }
+      updateSelectorConfidence(refs, p.confidence);
       return Promise.resolve({ type: "ACK", payload: {} });
     }
 
@@ -394,6 +492,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!nameIsCustom) {
       refs.nameInput.value = refs.selectorInput.value;
     }
+    validateSelectorInput(refs);
   });
 
   // ── Select Element toggle ───────────────────────────────────────────────
@@ -411,6 +510,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   // ── Auto-generate (content-script handler wired in Step 7) ─────────────
+  // remove this after initial build
   autoGenBtn?.addEventListener("click", () => {
     void relayToContentScript("GENERATE_SELECTOR", {});
   });

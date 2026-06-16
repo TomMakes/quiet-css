@@ -48,8 +48,12 @@
 
         <div class="field-group">
           <label class="field-label" for="rule-selector-input">Selector</label>
-          <input id="rule-selector-input" type="text" class="field-input"
-                 placeholder="CSS selector" autocomplete="off" spellcheck="false">
+          <div class="selector-row">
+            <input id="rule-selector-input" type="text" class="field-input"
+                   placeholder="CSS selector" autocomplete="off" spellcheck="false">
+            <span id="selector-confidence" class="selector-confidence" aria-hidden="true"></span>
+          </div>
+          <p id="selector-invalid-msg" class="selector-invalid-msg" style="display:none;"></p>
           <button id="auto-gen-btn" class="btn btn--secondary btn--small">⟳ Auto-generate</button>
         </div>
 

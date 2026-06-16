@@ -41,6 +41,11 @@ class EditMode {
             this._exitEditMode();
             return Promise.resolve({ type: "OK", payload: {} });
           }
+
+          case "GENERATE_SELECTOR": {
+            this._picker.handleGenerateSelector();
+            return Promise.resolve({ type: "OK", payload: {} });
+          }
         }
 
         // Not handled here; let other listeners see it.

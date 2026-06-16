@@ -30,7 +30,11 @@ const SIDEBAR_HTML = `
   <input  id="host-pattern-input"   type="text" />
   <button id="regex-toggle-btn">[.*]</button>
   <input  id="rule-name-input"      type="text" />
-  <input  id="rule-selector-input"  type="text" />
+  <div class="selector-row">
+    <input  id="rule-selector-input"  type="text" />
+    <span   id="selector-confidence" class="selector-confidence"></span>
+  </div>
+  <p id="selector-invalid-msg" style="display:none;"></p>
   <textarea id="rule-css-input"></textarea>
   <input  type="checkbox" id="important-checkbox" checked />
   <input  type="checkbox" id="force-reapply-checkbox" />
@@ -611,4 +615,94 @@ describe("sidebar — CSS Editor Panel", () => {
     expect(btn.textContent).toBe("Select Element");
     expect(btn.classList.contains("select-element-btn--picking")).toBe(false);
   });
+
+  // ── SELECTOR_GENERATED ──────────────────────────────────────────────────────
+
+  it("SELECTOR_GENERATED populates selector field and shows confidence indicator", async () => {
+    await loadSidebar();
+
+    const listener = capturedListeners[0];
+    listener({
+      type: "SELECTOR_GENERATED",
+      payload: { selector: "#yt-sidebar", confidence: "high" },
+    });
+    await flushAsync();
+
+    const selectorInput = document.getElementById("rule-selector-input") as HTMLInputElement;
+    const confidence    = document.getElementById("selector-confidence") as HTMLElement;
+    expect(selectorInput.value).toBe("#yt-sidebar");
+    expect(confidence.classList.contains("selector-confidence--high")).toBe(true);
+    expect(confidence.textContent).toContain("High");
+  });
+
+  it("SELECTOR_GENERATED updates name when nameIsCustom is false", async () => {
+    await loadSidebar();
+
+    const listener = capturedListeners[0];
+    listener({
+      type: "SELECTOR_GENERATED",
+      payload: { selector: ".nav-bar", confidence: "medium" },
+    });
+    await flushAsync();
+
+    const nameInput = document.getElementById("rule-name-input") as HTMLInputElement;
+    expect(nameInput.value).toBe(".nav-bar");
+  });
+
+  it("SELECTOR_GENERATED does NOT overwrite custom name", async () => {
+    await loadSidebar();
+
+    // Set a custom name first
+    const nameInput = document.getElementById("rule-name-input") as HTMLInputElement;
+    nameInput.value = "My custom name";
+    nameInput.dispatchEvent(new Event("input"));
+    await flushAsync();
+
+    const listener = capturedListeners[0];
+    listener({
+      type: "SELECTOR_GENERATED",
+      payload: { selector: ".something", confidence: "high" },
+    });
+    await flushAsync();
+
+    expect(nameInput.value).toBe("My custom name");
+  });
+
+  it("typing an invalid selector shows invalid indicator and disables Save", async () => {
+    await loadSidebar();
+
+    const selectorInput = document.getElementById("rule-selector-input") as HTMLInputElement;
+    const confidence    = document.getElementById("selector-confidence") as HTMLElement;
+    const saveBtn       = document.getElementById("save-rule-btn") as HTMLButtonElement;
+
+    selectorInput.value = "###bad-selector";
+    selectorInput.dispatchEvent(new Event("input"));
+    await flushAsync();
+
+    expect(confidence.classList.contains("selector-confidence--invalid")).toBe(true);
+    expect(saveBtn.disabled).toBe(true);
+  });
+
+  it("fixing an invalid selector clears invalid indicator and re-enables Save", async () => {
+    await loadSidebar();
+
+    const selectorInput = document.getElementById("rule-selector-input") as HTMLInputElement;
+    const confidence    = document.getElementById("selector-confidence") as HTMLElement;
+    const saveBtn       = document.getElementById("save-rule-btn") as HTMLButtonElement;
+
+    // First make it invalid
+    selectorInput.value = "###bad";
+    selectorInput.dispatchEvent(new Event("input"));
+    await flushAsync();
+    expect(saveBtn.disabled).toBe(true);
+
+    // Now fix it
+    selectorInput.value = ".valid-selector";
+    selectorInput.dispatchEvent(new Event("input"));
+    await flushAsync();
+
+    expect(confidence.classList.contains("selector-confidence--invalid")).toBe(false);
+    expect(saveBtn.disabled).toBe(false);
+  });
 });
+
