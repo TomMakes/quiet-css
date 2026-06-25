@@ -19,6 +19,7 @@ type BrowserStub = {
 };
 
 let messageHandler: RuntimeMessageHandler | undefined;
+let allMessageHandlers: RuntimeMessageHandler[] = [];
 let browserStub: BrowserStub;
 
 async function runContentScript(relPath: string): Promise<void> {
@@ -71,6 +72,7 @@ describe("content edit-mode stack", () => {
       runtime: {
         onMessage: {
           addListener: (handler: RuntimeMessageHandler) => {
+            allMessageHandlers.push(handler);
             messageHandler = handler;
           },
         },
@@ -86,8 +88,10 @@ describe("content edit-mode stack", () => {
     vi.stubGlobal("browser", browserStub);
 
     await runContentScript("src/shared/selector_gen.ts");
+    await runContentScript("src/shared/pattern_fills.ts");
     await runContentScript("src/content/highlight_overlay.ts");
     await runContentScript("src/content/picker.ts");
+    await runContentScript("src/content/blind.ts");
     await runContentScript("src/content/edit_mode.ts");
   });
 
@@ -104,6 +108,9 @@ describe("content edit-mode stack", () => {
 
     const pickerInstance = getScriptBinding<{ deactivate: () => void }>("picker");
     pickerInstance.deactivate();
+
+    const blindRenderer = getScriptBinding<{ deactivateDrawMode: () => void }>("blindRenderer");
+    blindRenderer.deactivateDrawMode();
   });
 
   describe("highlight_overlay.ts", () => {
@@ -280,6 +287,243 @@ describe("content edit-mode stack", () => {
       await handler({ type: "GENERATE_SELECTOR", payload: {} });
 
       expect(browserStub.runtime.sendMessage).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("blind.ts", () => {
+    function makeBlind(id: string, overrides: Partial<Blind> = {}): Blind {
+      return {
+        id,
+        name: "Test Blind",
+        hostPattern: "example.com",
+        isRegex: false,
+        top: 100,
+        left: 50,
+        width: 200,
+        height: 80,
+        positionMode: "absolute",
+        color: "#1a1a2e",
+        pattern: "none",
+        enabled: true,
+        ...overrides,
+      };
+    }
+
+    it("renderBlind creates a blind element with correct position and dimensions", () => {
+      const br = getScriptBinding<{ renderBlind: (b: Blind) => void }>("blindRenderer");
+      br.renderBlind(makeBlind("render-test-1"));
+
+      const container = document.getElementById("quietcss-blinds-container");
+      const el = container?.querySelector<HTMLElement>('[data-quietcss-blind-id="render-test-1"]');
+
+      expect(container).not.toBeNull();
+      expect(el).not.toBeNull();
+      expect(el?.style.top).toBe("100px");
+      expect(el?.style.left).toBe("50px");
+      expect(el?.style.width).toBe("200px");
+      expect(el?.style.height).toBe("80px");
+      expect(el?.style.position).toBe("absolute");
+    });
+
+    it("renderBlind with enabled=false hides the element", () => {
+      const br = getScriptBinding<{ renderBlind: (b: Blind) => void }>("blindRenderer");
+      br.renderBlind(makeBlind("render-test-2", { enabled: false }));
+
+      const container = document.getElementById("quietcss-blinds-container");
+      const el = container?.querySelector<HTMLElement>('[data-quietcss-blind-id="render-test-2"]');
+
+      expect(el).not.toBeNull();
+      expect(el?.style.display).toBe("none");
+    });
+
+    it("renderBlind updating an existing blind re-applies styles", () => {
+      const br = getScriptBinding<{ renderBlind: (b: Blind) => void }>("blindRenderer");
+      br.renderBlind(makeBlind("render-test-3", { top: 10, left: 10 }));
+      br.renderBlind(makeBlind("render-test-3", { top: 99, left: 77 }));
+
+      const container = document.getElementById("quietcss-blinds-container");
+      const els = container?.querySelectorAll('[data-quietcss-blind-id="render-test-3"]');
+
+      expect(els?.length).toBe(1);
+      expect((els?.[0] as HTMLElement).style.top).toBe("99px");
+      expect((els?.[0] as HTMLElement).style.left).toBe("77px");
+    });
+
+    it("removeBlind removes the element from the DOM", () => {
+      const br = getScriptBinding<{ renderBlind: (b: Blind) => void; removeBlind: (id: string) => void }>("blindRenderer");
+      br.renderBlind(makeBlind("remove-test-1"));
+      expect(document.querySelector('[data-quietcss-blind-id="remove-test-1"]')).not.toBeNull();
+
+      br.removeBlind("remove-test-1");
+
+      expect(document.querySelector('[data-quietcss-blind-id="remove-test-1"]')).toBeNull();
+    });
+
+    it("updateBlind without positionMode change updates element position in place", () => {
+      const br = getScriptBinding<{ renderBlind: (b: Blind) => void; updateBlind: (b: Blind) => Blind }>("blindRenderer");
+      br.renderBlind(makeBlind("update-test-1", { top: 100, left: 50, positionMode: "absolute" }));
+
+      const result = br.updateBlind(makeBlind("update-test-1", { top: 200, left: 80, positionMode: "absolute" }));
+
+      expect(result.top).toBe(200);
+      expect(result.left).toBe(80);
+      const el = document.querySelector<HTMLElement>('[data-quietcss-blind-id="update-test-1"]');
+      expect(el?.style.top).toBe("200px");
+      expect(el?.style.left).toBe("80px");
+    });
+
+    it("updateBlind converts coords when positionMode changes absolute → fixed", () => {
+      const br = getScriptBinding<{ renderBlind: (b: Blind) => void; updateBlind: (b: Blind) => Blind }>("blindRenderer");
+      br.renderBlind(makeBlind("update-test-2", { positionMode: "absolute", top: 100, left: 50 }));
+
+      // Stub non-zero scroll so the coord conversion produces different values than the incoming blind
+      Object.defineProperty(window, "scrollY", { value: 40, configurable: true, writable: true });
+      Object.defineProperty(window, "scrollX", { value: 20, configurable: true, writable: true });
+
+      const result = br.updateBlind(makeBlind("update-test-2", { positionMode: "fixed", top: 100, left: 50 }));
+
+      // absolute → fixed: subtract scroll
+      expect(result.top).toBe(100 - window.scrollY);
+      expect(result.left).toBe(50 - window.scrollX);
+      expect(result.positionMode).toBe("fixed");
+    });
+
+    it("updateBlind converts coords when positionMode changes fixed → absolute", () => {
+      const br = getScriptBinding<{ renderBlind: (b: Blind) => void; updateBlind: (b: Blind) => Blind }>("blindRenderer");
+
+      // Stub non-zero scroll so the coord conversion produces different values than the incoming blind
+      Object.defineProperty(window, "scrollY", { value: 40, configurable: true, writable: true });
+      Object.defineProperty(window, "scrollX", { value: 20, configurable: true, writable: true });
+
+      br.renderBlind(makeBlind("update-test-3", { positionMode: "fixed", top: 100, left: 50 }));
+
+      const result = br.updateBlind(makeBlind("update-test-3", { positionMode: "absolute", top: 100, left: 50 }));
+
+      // fixed → absolute: add scroll
+      expect(result.top).toBe(100 + window.scrollY);
+      expect(result.left).toBe(50 + window.scrollX);
+      expect(result.positionMode).toBe("absolute");
+    });
+
+    it("activateDrawMode injects a crosshair cursor style into document head", () => {
+      const br = getScriptBinding<{ activateDrawMode: () => void; deactivateDrawMode: () => void }>("blindRenderer");
+      br.activateDrawMode();
+
+      const cursorStyle = document.getElementById("quietcss-blind-cursor");
+      expect(cursorStyle).not.toBeNull();
+      expect(cursorStyle?.textContent).toContain("crosshair");
+
+      br.deactivateDrawMode();
+    });
+
+    it("deactivateDrawMode removes the cursor style tag", () => {
+      const br = getScriptBinding<{ activateDrawMode: () => void; deactivateDrawMode: () => void }>("blindRenderer");
+      br.activateDrawMode();
+      expect(document.getElementById("quietcss-blind-cursor")).not.toBeNull();
+
+      br.deactivateDrawMode();
+
+      expect(document.getElementById("quietcss-blind-cursor")).toBeNull();
+    });
+
+    it("draw: mousedown + mousemove + mouseup sends BLIND_DRAWN with correct coordinates", async () => {
+      const br = getScriptBinding<{ activateDrawMode: () => void }>("blindRenderer");
+      br.activateDrawMode();
+      browserStub.runtime.sendMessage.mockClear();
+
+      document.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, clientX: 10, clientY: 20, button: 0 }));
+      document.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, clientX: 110, clientY: 120 }));
+      document.dispatchEvent(new MouseEvent("mouseup",   { bubbles: true, clientX: 110, clientY: 120, button: 0 }));
+
+      await Promise.resolve();
+
+      expect(browserStub.runtime.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "BLIND_DRAWN",
+          payload: { top: 20, left: 10, width: 100, height: 100 },
+        })
+      );
+    });
+
+    it("draw: sub-5px drag is ignored and does not send BLIND_DRAWN", async () => {
+      const br = getScriptBinding<{ activateDrawMode: () => void }>("blindRenderer");
+      br.activateDrawMode();
+      browserStub.runtime.sendMessage.mockClear();
+
+      document.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, clientX: 10, clientY: 20, button: 0 }));
+      document.dispatchEvent(new MouseEvent("mouseup",   { bubbles: true, clientX: 12, clientY: 22, button: 0 }));
+
+      await Promise.resolve();
+
+      expect(browserStub.runtime.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it("UPDATE_BLIND message renders the blind and returns OK", async () => {
+      // blind.ts registers its onMessage handler before edit_mode.ts, so it is allMessageHandlers[0]
+      const handler = allMessageHandlers[0];
+      if (!handler) {
+        expect.fail("blind.ts onMessage handler was not registered");
+        return;
+      }
+
+      const result = await handler({ type: "UPDATE_BLIND", payload: { blind: makeBlind("msg-test-1") } });
+
+      expect(result).toEqual({ type: "OK", payload: {} });
+      expect(document.querySelector('[data-quietcss-blind-id="msg-test-1"]')).not.toBeNull();
+    });
+
+    it("REMOVE_BLIND message removes the blind and returns OK", async () => {
+      const handler = allMessageHandlers[0];
+      if (!handler) {
+        expect.fail("blind.ts onMessage handler was not registered");
+        return;
+      }
+
+      const br = getScriptBinding<{ renderBlind: (b: Blind) => void }>("blindRenderer");
+      br.renderBlind(makeBlind("msg-test-2"));
+      expect(document.querySelector('[data-quietcss-blind-id="msg-test-2"]')).not.toBeNull();
+
+      const result = await handler({ type: "REMOVE_BLIND", payload: { id: "msg-test-2" } });
+
+      expect(result).toEqual({ type: "OK", payload: {} });
+      expect(document.querySelector('[data-quietcss-blind-id="msg-test-2"]')).toBeNull();
+    });
+
+    it("UPDATE_BLIND sends BLIND_COORDS_ADJUSTED when positionMode changes", async () => {
+      const handler = allMessageHandlers[0];
+      if (!handler) {
+        expect.fail("blind.ts onMessage handler was not registered");
+        return;
+      }
+
+      // Stub non-zero scroll so the coord conversion produces different values than the incoming blind
+      Object.defineProperty(window, "scrollY", { value: 40, configurable: true, writable: true });
+      Object.defineProperty(window, "scrollX", { value: 20, configurable: true, writable: true });
+
+      const br = getScriptBinding<{ renderBlind: (b: Blind) => void }>("blindRenderer");
+      br.renderBlind(makeBlind("msg-test-3", { positionMode: "absolute", top: 100, left: 50 }));
+      browserStub.runtime.sendMessage.mockClear();
+
+      try {
+        await handler({
+          type: "UPDATE_BLIND",
+          payload: { blind: makeBlind("msg-test-3", { positionMode: "fixed", top: 100, left: 50 }) },
+        });
+
+        expect(browserStub.runtime.sendMessage).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: "BLIND_COORDS_ADJUSTED",
+            payload: expect.objectContaining({
+              id: "msg-test-3",
+              top: 60, // 100 - scrollY(40)
+              left: 30, // 50 - scrollX(20)
+            }),
+          })
+        );
+      } finally {
+        Object.defineProperty(window, "scrollY", { value: 0, configurable: true, writable: true });
+        Object.defineProperty(window, "scrollX", { value: 0, configurable: true, writable: true });
+      }
     });
   });
 });

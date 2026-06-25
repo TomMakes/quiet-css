@@ -45,7 +45,9 @@ declare type QCRelayToContentScriptType =
   | "REMOVE_RULE_PREVIEW"
   | "INJECT_RULE"
   | "REMOVE_RULE"
-  | "GENERATE_SELECTOR";
+  | "GENERATE_SELECTOR"
+  | "UPDATE_BLIND"
+  | "REMOVE_BLIND";
 
 declare interface QCRelayToContentScriptPayloadMap {
   ENTER_EDIT_MODE: { submode: "style" | "blind" };
@@ -56,6 +58,8 @@ declare interface QCRelayToContentScriptPayloadMap {
   INJECT_RULE: { rule: Rule };
   REMOVE_RULE: { id: string };
   GENERATE_SELECTOR: Record<string, never>;
+  UPDATE_BLIND: { blind: Blind };
+  REMOVE_BLIND: { id: string };
 }
 
 declare type QCRelayToContentScriptMessage<

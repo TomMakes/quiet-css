@@ -20,7 +20,8 @@ class EditMode {
 
   constructor(
     private _picker: Picker,
-    private _overlay: HighlightOverlay
+    private _overlay: HighlightOverlay,
+    private _blind: BlindRenderer
   ) {
     browser.runtime.onMessage.addListener(
       (message: unknown): Promise<QCMessage> | undefined => {
@@ -62,20 +63,21 @@ class EditMode {
   }
 
   private _enterBlindMode(): void {
-    // Full implementation in Build Step 9.
     if (this._editMode !== "BROWSE") this._exitEditMode();
     this._editMode = "BLIND";
+    this._blind.activateDrawMode();
   }
 
   private _exitEditMode(): void {
     if (this._editMode === "STYLE") {
       this._picker.deactivate();
+    } else if (this._editMode === "BLIND") {
+      this._blind.deactivateDrawMode();
     }
-    // Blind mode teardown arrives in Build Step 9.
     this._editMode = "BROWSE";
     this._overlay.hideOverlay();
   }
 }
 
 // Create singleton instance and inject dependencies
-const editMode = new EditMode(picker, highlightOverlay);
+const editMode = new EditMode(picker, highlightOverlay, blindRenderer);

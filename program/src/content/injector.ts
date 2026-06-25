@@ -32,7 +32,14 @@
   const enabledBlinds = data.blinds.filter(b => b.enabled);
   if (enabledBlinds.length > 0) {
     const renderBlinds = () => {
-      // blind.ts renderBlind(blind) will be wired in Build Step 9.
+      // Guard: blindRenderer is loaded after injector in manifest order,
+      // but renderBlinds only fires on DOMContentLoaded by which time all
+      // content scripts are loaded.
+      if (typeof blindRenderer !== "undefined") {
+        for (const blind of enabledBlinds) {
+          blindRenderer.renderBlind(blind);
+        }
+      }
     };
     if (document.body) {
       renderBlinds();

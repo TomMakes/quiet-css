@@ -765,15 +765,15 @@ Attempt the following in order, returning the first result with `confidence: "hi
 
 ### Acceptance Criteria
 
-- [ ] Drawing a blind on YouTube covers the target area on mouse-up.
-- [ ] Blind persists on page reload.
-- [ ] Blind persists after YouTube SPA navigation.
-- [ ] "Stick to viewport" blind stays fixed during page scroll.
-- [ ] "Stick to page" blind scrolls with the page content.
-- [ ] Toggling position mode converts coordinates correctly (no jump on toggle).
-- [ ] Blind name defaults to `Blind [n]` per host; clearing and blurring restores it.
-- [ ] Blind is rendered above YouTube's own UI elements in standard page conditions.
-- [ ] Enable/disable toggle shows/hides the blind without deleting it.
+- [X] Drawing a blind on YouTube covers the target area on mouse-up.
+- [X] Blind persists on page reload.
+- [X] Blind persists after YouTube SPA navigation.
+- [X] "Stick to viewport" blind stays fixed during page scroll.
+- [X] "Stick to page" blind scrolls with the page content.
+- [X] Toggling position mode converts coordinates correctly (no jump on toggle).
+- [X] Blind name defaults to `Blind [n]` per host; clearing and blurring restores it.
+- [X] Blind is rendered above YouTube's own UI elements in standard page conditions.
+- [X] Enable/disable toggle shows/hides the blind without deleting it.
 
 ---
 

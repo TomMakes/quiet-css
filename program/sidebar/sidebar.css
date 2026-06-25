@@ -484,3 +484,58 @@ body {
   color: #606080;
   cursor: not-allowed;
 }
+
+/* ── Blind-specific styles ────────────────────────────────────────────────── */
+
+.draw-blind-btn {
+  width: 100%;
+  margin-bottom: 6px;
+}
+
+.draw-blind-btn--active {
+  background: #2a4a3a;
+  border-color: #50a070;
+  color: #70d0a0;
+}
+
+.editor-panel--hidden {
+  display: none;
+}
+
+.color-input {
+  -webkit-appearance: none;
+  appearance: none;
+  background: #0d0d1e;
+  border: 1px solid #2e2e4e;
+  border-radius: 3px;
+  cursor: pointer;
+  height: 28px;
+  padding: 2px;
+  width: 48px;
+}
+
+.color-input::-webkit-color-swatch-wrapper {
+  padding: 2px;
+}
+
+.color-input::-webkit-color-swatch {
+  border: none;
+  border-radius: 2px;
+}
+
+.field-select {
+  -webkit-appearance: none;
+  appearance: none;
+  background: #0d0d1e url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23808098'/%3E%3C/svg%3E") no-repeat right 8px center;
+  border: 1px solid #2e2e4e;
+  border-radius: 3px;
+  color: #e0e0e0;
+  font-size: 12px;
+  outline: none;
+  padding: 4px 24px 4px 6px;
+  width: 100%;
+}
+
+.field-select:focus {
+  border-color: #5050a0;
+}

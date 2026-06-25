@@ -1,13 +1,18 @@
-// sidebar.ts — CSS Editor Panel (Build Step 6)
+// sidebar.ts — CSS Editor Panel (Build Step 6) + Blinds Tab (Build Step 9)
 
 // ── Module-level state ─────────────────────────────────────────────────────
 let currentHostname = "";
 let currentUrl = "";
 let allMatchingRules: Rule[] = [];
+let allMatchingBlinds: Blind[] = [];
 let editingRuleId: string | null = null;
+let editingBlindId: string | null = null;
 let nameIsCustom = false;
 let isRegex = false;
+let blindIsRegex = false;
 let isPickingElement = false;
+let isDrawingBlind = false;
+let pendingBlindCoords: { top: number; left: number; width: number; height: number } | null = null;
 
 // ── Utility functions ──────────────────────────────────────────────────────
 
@@ -29,10 +34,12 @@ async function loadRules(): Promise<void> {
     }) as QCMessage;
     if (response.type === "RULES_DATA") {
       allMatchingRules = response.payload.rules as Rule[];
+      allMatchingBlinds = response.payload.blinds as Blind[];
     }
   } catch (err) {
     console.error("[QuietCSS Sidebar] loadRules failed:", err);
     allMatchingRules = [];
+    allMatchingBlinds = [];
   }
 }
 
@@ -187,6 +194,21 @@ interface EditorRefs {
   rulesListContainer: HTMLElement;
   noRulesMsg: HTMLElement | null;
   saveRuleBtn: HTMLButtonElement | null;
+}
+
+interface BlindEditorRefs {
+  blindHostPatternInput: HTMLInputElement | null;
+  blindRegexToggleBtn: HTMLButtonElement | null;
+  blindHostRegexIndicator: HTMLElement | null;
+  blindNameInput: HTMLInputElement | null;
+  blindColorInput: HTMLInputElement | null;
+  blindPatternSelect: HTMLSelectElement | null;
+  blindPositionSelect: HTMLSelectElement | null;
+  blindsListContainer: HTMLElement | null;
+  noBlindsMsg: HTMLElement | null;
+  saveBlindBtn: HTMLButtonElement | null;
+  drawBlindBtn: HTMLButtonElement | null;
+  blindEditorPanel: HTMLElement | null;
 }
 
 // ── Selector confidence + validation helpers ───────────────────────────────
@@ -399,6 +421,167 @@ async function toggleRule(ruleId: string, refs: EditorRefs): Promise<void> {
   }
 }
 
+// ── Blind render helpers ───────────────────────────────────────────────────
+
+function renderBlindsList(
+  container: HTMLElement | null,
+  blinds: Blind[],
+  activeBlindId: string | null,
+  noMsg: HTMLElement | null,
+): void {
+  if (!container) return;
+  container.querySelectorAll(".blind-item").forEach(el => el.remove());
+  if (noMsg) {
+    noMsg.style.display = blinds.length === 0 ? "" : "none";
+  }
+  for (const blind of blinds) {
+    container.appendChild(buildBlindItem(blind, blind.id === activeBlindId));
+  }
+}
+
+function buildBlindItem(blind: Blind, isActive: boolean): HTMLElement {
+  const item = document.createElement("div");
+  item.className = "rule-item blind-item" + (isActive ? " rule-item--active" : "");
+  item.dataset.blindId = blind.id;
+
+  const row = document.createElement("div");
+  row.className = "rule-item-row";
+
+  const nameSpan = document.createElement("span");
+  nameSpan.className = "rule-item-name";
+  nameSpan.textContent = blind.name || "Blind";
+
+  const toggleBtn = document.createElement("button");
+  toggleBtn.className = "rule-toggle-btn" + (blind.enabled ? " rule-toggle-btn--enabled" : "");
+  toggleBtn.textContent = blind.enabled ? "●" : "○";
+  toggleBtn.title = blind.enabled ? "Disable blind" : "Enable blind";
+  toggleBtn.dataset.blindId = blind.id;
+  toggleBtn.dataset.action = "toggle";
+
+  const deleteBtn = document.createElement("button");
+  deleteBtn.className = "rule-delete-btn";
+  deleteBtn.textContent = "✕";
+  deleteBtn.title = "Delete blind";
+  deleteBtn.dataset.blindId = blind.id;
+  deleteBtn.dataset.action = "delete";
+
+  row.appendChild(nameSpan);
+  row.appendChild(toggleBtn);
+  row.appendChild(deleteBtn);
+  item.appendChild(row);
+  return item;
+}
+
+// ── Blind editor state helpers ─────────────────────────────────────────────
+
+function populateBlindEditor(blind: Blind, brefs: BlindEditorRefs): void {
+  editingBlindId = blind.id;
+  blindIsRegex = blind.isRegex;
+  pendingBlindCoords = { top: blind.top, left: blind.left, width: blind.width, height: blind.height };
+  if (brefs.blindHostPatternInput) brefs.blindHostPatternInput.value = blind.hostPattern;
+  if (brefs.blindNameInput) brefs.blindNameInput.value = blind.name;
+  if (brefs.blindColorInput) brefs.blindColorInput.value = blind.color;
+  if (brefs.blindPatternSelect) brefs.blindPatternSelect.value = blind.pattern;
+  if (brefs.blindPositionSelect) brefs.blindPositionSelect.value = blind.positionMode;
+  brefs.blindEditorPanel?.classList.remove("editor-panel--hidden");
+}
+
+function clearBlindEditor(brefs: BlindEditorRefs): void {
+  editingBlindId = null;
+  blindIsRegex = false;
+  pendingBlindCoords = null;
+  if (brefs.blindHostPatternInput) brefs.blindHostPatternInput.value = currentHostname;
+  if (brefs.blindNameInput) brefs.blindNameInput.value = "";
+  if (brefs.blindColorInput) brefs.blindColorInput.value = "#1a1a2e";
+  if (brefs.blindPatternSelect) brefs.blindPatternSelect.value = "dots";
+  if (brefs.blindPositionSelect) brefs.blindPositionSelect.value = "absolute";
+  brefs.blindEditorPanel?.classList.add("editor-panel--hidden");
+}
+
+// ── Blind action helpers ───────────────────────────────────────────────────
+
+async function saveBlind(brefs: BlindEditorRefs): Promise<void> {
+  const hostPattern = brefs.blindHostPatternInput?.value.trim() ?? "";
+  if (!hostPattern || !pendingBlindCoords) return;
+
+  const hostBlinds = allMatchingBlinds.filter(b => b.hostPattern === hostPattern);
+  const n = editingBlindId ? hostBlinds.findIndex(b => b.id === editingBlindId) + 1 : hostBlinds.length + 1;
+  const name = brefs.blindNameInput?.value.trim() || `Blind ${n}`;
+  const positionMode = (brefs.blindPositionSelect?.value ?? "absolute") as "absolute" | "fixed";
+  const color = brefs.blindColorInput?.value ?? "#1a1a2e";
+  const pattern = (brefs.blindPatternSelect?.value ?? "dots") as Blind["pattern"];
+
+  const blindPartial: Partial<Blind> = {
+    ...(editingBlindId ? { id: editingBlindId } : {}),
+    name,
+    hostPattern,
+    isRegex: blindIsRegex,
+    top: pendingBlindCoords.top,
+    left: pendingBlindCoords.left,
+    width: pendingBlindCoords.width,
+    height: pendingBlindCoords.height,
+    positionMode,
+    color,
+    pattern,
+    enabled: true,
+  };
+
+  try {
+    const response = await browser.runtime.sendMessage({
+      type: "SAVE_BLIND",
+      payload: { blind: blindPartial },
+    }) as QCMessage;
+    if (response.type === "BLIND_SAVED") {
+      const savedBlind = response.payload.blind as Blind;
+      editingBlindId = savedBlind.id;
+      pendingBlindCoords = {
+        top: savedBlind.top,
+        left: savedBlind.left,
+        width: savedBlind.width,
+        height: savedBlind.height,
+      };
+      await relayToContentScript("UPDATE_BLIND", { blind: savedBlind });
+      await loadRules();
+      renderBlindsList(brefs.blindsListContainer, allMatchingBlinds, editingBlindId, brefs.noBlindsMsg);
+    }
+  } catch (err) {
+    console.error("[QuietCSS Sidebar] saveBlind failed:", err);
+  }
+}
+
+async function deleteBlind(blindId: string, brefs: BlindEditorRefs): Promise<void> {
+  try {
+    const wasEditing = editingBlindId === blindId;
+    await browser.runtime.sendMessage({ type: "DELETE_BLIND", payload: { id: blindId } });
+    await relayToContentScript("REMOVE_BLIND", { id: blindId });
+    await loadRules();
+    if (wasEditing) clearBlindEditor(brefs);
+    renderBlindsList(brefs.blindsListContainer, allMatchingBlinds, editingBlindId, brefs.noBlindsMsg);
+  } catch (err) {
+    console.error("[QuietCSS Sidebar] deleteBlind failed:", err);
+  }
+}
+
+async function toggleBlind(blindId: string, brefs: BlindEditorRefs): Promise<void> {
+  const blind = allMatchingBlinds.find(b => b.id === blindId);
+  if (!blind) return;
+  const newEnabled = !blind.enabled;
+  try {
+    const response = await browser.runtime.sendMessage({
+      type: "TOGGLE_BLIND",
+      payload: { id: blindId, enabled: newEnabled },
+    }) as QCMessage;
+    if (response.type === "BLIND_UPDATED") {
+      const updated = response.payload.blind as Blind;
+      await relayToContentScript("UPDATE_BLIND", { blind: updated });
+      await loadRules();
+      renderBlindsList(brefs.blindsListContainer, allMatchingBlinds, editingBlindId, brefs.noBlindsMsg);
+    }
+  } catch (err) {
+    console.error("[QuietCSS Sidebar] toggleBlind failed:", err);
+  }
+}
+
 // ── DOMContentLoaded ───────────────────────────────────────────────────────
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -431,11 +614,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     saveRuleBtn:          saveRuleBtn,
   };
 
+  const brefs: BlindEditorRefs = {
+    blindHostPatternInput:   document.getElementById("blind-host-pattern-input") as HTMLInputElement | null,
+    blindRegexToggleBtn:     document.getElementById("blind-regex-toggle-btn")   as HTMLButtonElement | null,
+    blindHostRegexIndicator: document.getElementById("blind-host-regex-indicator"),
+    blindNameInput:          document.getElementById("blind-name-input")         as HTMLInputElement | null,
+    blindColorInput:         document.getElementById("blind-color-input")        as HTMLInputElement | null,
+    blindPatternSelect:      document.getElementById("blind-pattern-select")     as HTMLSelectElement | null,
+    blindPositionSelect:     document.getElementById("blind-position-select")    as HTMLSelectElement | null,
+    blindsListContainer:     document.getElementById("blinds-list"),
+    noBlindsMsg:             document.getElementById("no-blinds-msg"),
+    saveBlindBtn:            document.getElementById("save-blind-btn")           as HTMLButtonElement | null,
+    drawBlindBtn:            document.getElementById("draw-blind-btn")           as HTMLButtonElement | null,
+    blindEditorPanel:        document.getElementById("blind-editor-panel"),
+  };
+
   // ── Initialise ─────────────────────────────────────────────────────────
   ({ hostname: currentHostname, url: currentUrl } = await getActiveTabHostname());
   refs.hostPatternInput.value = currentHostname;
+  if (brefs.blindHostPatternInput) brefs.blindHostPatternInput.value = currentHostname;
   await loadRules();
   renderRulesList(refs.rulesListContainer, allMatchingRules, editingRuleId, refs.noRulesMsg);
+  renderBlindsList(brefs.blindsListContainer, allMatchingBlinds, editingBlindId, brefs.noBlindsMsg);
 
   // ── Incoming messages ───────────────────────────────────────────────────
   browser.runtime.onMessage.addListener((message: unknown): Promise<QCMessage> | undefined => {
@@ -476,9 +676,51 @@ document.addEventListener("DOMContentLoaded", async () => {
       currentHostname = p.hostname;
       currentUrl = p.url ?? "";
       refs.hostPatternInput.value = currentHostname;
-      void loadRules().then(() =>
-        renderRulesList(refs.rulesListContainer, allMatchingRules, editingRuleId, refs.noRulesMsg)
-      );
+      if (brefs.blindHostPatternInput) brefs.blindHostPatternInput.value = currentHostname;
+      // Cancel any in-progress blind draw on tab change.
+      if (isDrawingBlind) {
+        isDrawingBlind = false;
+        void relayToContentScript("EXIT_EDIT_MODE", {});
+        if (brefs.drawBlindBtn) {
+          brefs.drawBlindBtn.textContent = "+ Draw new blind";
+          brefs.drawBlindBtn.classList.remove("draw-blind-btn--active");
+        }
+        clearBlindEditor(brefs);
+      }
+      void loadRules().then(() => {
+        renderRulesList(refs.rulesListContainer, allMatchingRules, editingRuleId, refs.noRulesMsg);
+        renderBlindsList(brefs.blindsListContainer, allMatchingBlinds, editingBlindId, brefs.noBlindsMsg);
+      });
+      return Promise.resolve({ type: "ACK", payload: {} });
+    }
+
+    if (msg.type === "BLIND_DRAWN") {
+      const p = msg.payload as { top: number; left: number; width: number; height: number };
+      // Exit draw mode
+      isDrawingBlind = false;
+      void relayToContentScript("EXIT_EDIT_MODE", {});
+      if (brefs.drawBlindBtn) {
+        brefs.drawBlindBtn.textContent = "+ Draw new blind";
+        brefs.drawBlindBtn.classList.remove("draw-blind-btn--active");
+      }
+      // Store coords and open editor
+      pendingBlindCoords = { top: p.top, left: p.left, width: p.width, height: p.height };
+      editingBlindId = null;
+      const n = allMatchingBlinds.filter(b => b.hostPattern === currentHostname).length + 1;
+      if (brefs.blindNameInput) brefs.blindNameInput.value = `Blind ${n}`;
+      if (brefs.blindHostPatternInput) brefs.blindHostPatternInput.value = currentHostname;
+      if (brefs.blindColorInput) brefs.blindColorInput.value = "#1a1a2e";
+      if (brefs.blindPatternSelect) brefs.blindPatternSelect.value = "dots";
+      if (brefs.blindPositionSelect) brefs.blindPositionSelect.value = "absolute";
+      brefs.blindEditorPanel?.classList.remove("editor-panel--hidden");
+      return Promise.resolve({ type: "ACK", payload: {} });
+    }
+
+    if (msg.type === "BLIND_COORDS_ADJUSTED") {
+      const p = msg.payload as { id: string; top: number; left: number };
+      if (pendingBlindCoords && p.id === editingBlindId) {
+        pendingBlindCoords = { ...pendingBlindCoords, top: p.top, left: p.left };
+      }
       return Promise.resolve({ type: "ACK", payload: {} });
     }
 
@@ -606,6 +848,93 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
+  // ── Draw blind button ───────────────────────────────────────────────────
+  brefs.drawBlindBtn?.addEventListener("click", () => {
+    isDrawingBlind = !isDrawingBlind;
+    if (isDrawingBlind) {
+      if (brefs.drawBlindBtn) {
+        brefs.drawBlindBtn.textContent = "Cancel draw";
+        brefs.drawBlindBtn.classList.add("draw-blind-btn--active");
+      }
+      brefs.blindEditorPanel?.classList.add("editor-panel--hidden");
+      void relayToContentScript("ENTER_EDIT_MODE", { submode: "blind" });
+    } else {
+      if (brefs.drawBlindBtn) {
+        brefs.drawBlindBtn.textContent = "+ Draw new blind";
+        brefs.drawBlindBtn.classList.remove("draw-blind-btn--active");
+      }
+      void relayToContentScript("EXIT_EDIT_MODE", {});
+    }
+  });
+
+  // ── Blind position mode change — triggers coord conversion ──────────────
+  brefs.blindPositionSelect?.addEventListener("change", async () => {
+    if (editingBlindId && pendingBlindCoords) {
+      const blind = allMatchingBlinds.find(b => b.id === editingBlindId);
+      if (blind) {
+        const newMode = (brefs.blindPositionSelect?.value ?? "absolute") as "absolute" | "fixed";
+        const updatedBlind: Blind = {
+          ...blind,
+          positionMode: newMode,
+          top: pendingBlindCoords.top,
+          left: pendingBlindCoords.left,
+          width: pendingBlindCoords.width,
+          height: pendingBlindCoords.height,
+        };
+        await relayToContentScript("UPDATE_BLIND", { blind: updatedBlind });
+        // BLIND_COORDS_ADJUSTED response will update pendingBlindCoords
+      }
+    }
+  });
+
+  // ── Save blind ──────────────────────────────────────────────────────────
+  brefs.saveBlindBtn?.addEventListener("click", () => { void saveBlind(brefs); });
+
+  // ── Cancel blind ────────────────────────────────────────────────────────
+  document.getElementById("cancel-blind-btn")?.addEventListener("click", () => {
+    clearBlindEditor(brefs);
+    renderBlindsList(brefs.blindsListContainer, allMatchingBlinds, null, brefs.noBlindsMsg);
+  });
+
+  // ── Blind name field: clear-to-default on blur ──────────────────────────
+  brefs.blindNameInput?.addEventListener("blur", () => {
+    if (!brefs.blindNameInput || brefs.blindNameInput.value.trim() !== "") return;
+    const hostPattern = brefs.blindHostPatternInput?.value.trim() ?? currentHostname;
+    const hostBlinds = allMatchingBlinds.filter(b => b.hostPattern === hostPattern);
+    const n = editingBlindId
+      ? hostBlinds.findIndex(b => b.id === editingBlindId) + 1
+      : hostBlinds.length + 1;
+    brefs.blindNameInput.value = `Blind ${n}`;
+  });
+
+  // ── Blinds list: click-to-edit / toggle / delete ────────────────────────
+  brefs.blindsListContainer?.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement;
+    const action = target.dataset.action;
+    const blindId = target.dataset.blindId;
+
+    if (action === "delete" && blindId) {
+      e.stopPropagation();
+      void deleteBlind(blindId, brefs);
+      return;
+    }
+
+    if (action === "toggle" && blindId) {
+      e.stopPropagation();
+      void toggleBlind(blindId, brefs);
+      return;
+    }
+
+    const item = target.closest?.(".blind-item") as HTMLElement | null;
+    if (item?.dataset.blindId) {
+      const blind = allMatchingBlinds.find(b => b.id === item.dataset.blindId);
+      if (blind) {
+        populateBlindEditor(blind, brefs);
+        renderBlindsList(brefs.blindsListContainer, allMatchingBlinds, blind.id, brefs.noBlindsMsg);
+      }
+    }
+  });
+
   // Re-fetch on focus – handles tab switches without a TAB_CHANGED message.
   window.addEventListener("focus", () => {
     void (async () => {
@@ -614,9 +943,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         currentHostname = tab.hostname;
         currentUrl = tab.url;
         refs.hostPatternInput.value = currentHostname;
+        if (brefs.blindHostPatternInput) brefs.blindHostPatternInput.value = currentHostname;
       }
       await loadRules();
       renderRulesList(refs.rulesListContainer, allMatchingRules, editingRuleId, refs.noRulesMsg);
+      renderBlindsList(brefs.blindsListContainer, allMatchingBlinds, editingBlindId, brefs.noBlindsMsg);
     })();
   });
 });

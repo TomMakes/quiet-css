@@ -90,7 +90,60 @@
 
     <!-- ── Blinds Tab ──────────────────────────────────────────────────── -->
     <section class="tab-panel tab-panel--hidden" id="panel-blinds">
-      <p class="placeholder-text">Blinds are coming in Build Step 9.</p>
+
+      <div class="section-label">TARGET SITE/URL</div>
+      <div class="host-row">
+        <input id="blind-host-pattern-input" type="text" class="host-input"
+               placeholder="e.g. youtube.com" autocomplete="off" spellcheck="false">
+        <button id="blind-regex-toggle-btn" class="regex-btn" title="Toggle regex mode">[.*]</button>
+        <span id="blind-host-regex-indicator" class="host-regex-indicator" aria-hidden="true"></span>
+      </div>
+
+      <button id="draw-blind-btn" class="btn btn--secondary draw-blind-btn">+ Draw new blind</button>
+
+      <div class="editor-panel editor-panel--hidden" id="blind-editor-panel">
+        <div class="editor-panel-header">EDITING</div>
+
+        <div class="field-group">
+          <label class="field-label" for="blind-name-input">Name</label>
+          <input id="blind-name-input" type="text" class="field-input"
+                 placeholder="Blind 1" autocomplete="off">
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="blind-color-input">Color</label>
+          <input id="blind-color-input" type="color" class="color-input" value="#1a1a2e">
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="blind-pattern-select">Pattern</label>
+          <select id="blind-pattern-select" class="field-select">
+            <option value="dots" selected>Dots</option>
+            <option value="none">None</option>
+            <option value="diagonal">Diagonal</option>
+            <option value="grid">Grid</option>
+          </select>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="blind-position-select">Position</label>
+          <select id="blind-position-select" class="field-select">
+            <option value="absolute" selected>Stick to page</option>
+            <option value="fixed">Stick to viewport</option>
+          </select>
+        </div>
+
+        <div class="editor-actions">
+          <button id="save-blind-btn" class="btn btn--primary">Save</button>
+          <button id="cancel-blind-btn" class="btn">Cancel</button>
+        </div>
+      </div>
+
+      <div class="section-label">SAVED BLINDS</div>
+      <div id="blinds-list" class="rules-list">
+        <p class="placeholder-text" id="no-blinds-msg">No blinds yet.</p>
+      </div>
+
     </section>
 
   </main>

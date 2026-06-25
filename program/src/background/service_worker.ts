@@ -180,7 +180,9 @@ browser.runtime.onMessage.addListener(
       case "REMOVE_RULE_PREVIEW":
       case "INJECT_RULE":
       case "REMOVE_RULE":
-      case "GENERATE_SELECTOR": {
+      case "GENERATE_SELECTOR":
+      case "UPDATE_BLIND":
+      case "REMOVE_BLIND": {
         return (async () => {
           const tabs = await browser.tabs.query({ active: true, currentWindow: true });
           const tabId = tabs[0]?.id;
@@ -200,6 +202,7 @@ browser.runtime.onMessage.addListener(
       // Content → Sidebar: push element-picker results to all extension pages.
       case "ELEMENT_PICKED":
       case "BLIND_DRAWN":
+      case "BLIND_COORDS_ADJUSTED":
       case "SELECTOR_GENERATED": {
         // Fire-and-forget broadcast; sidebar may not always be open.
         browser.runtime.sendMessage({ type: msg.type, payload: msg.payload }).catch(() => {
